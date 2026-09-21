@@ -1,0 +1,26 @@
+{
+  "name": "jev-poly-crypto-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch run src/index.ts",
+    "demo": "DATA_MODE=demo MODEL=mock DATA_DIR=data/demo bun run src/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "check": "bun run typecheck && bun test",
+    "smoke": "bun run scripts/smoke.ts",
+    "check:jev": "bun run scripts/check-jev.ts",
+    "build:web": "node scripts/build-web.mjs"
+  },
+  "dependencies": {
+    "@ai-sdk/typesafe-ai": "3.0.4",
+    "ai": "7.0.107",
+    "zod": "^4.1.8"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.5",
+    "typescript": "^5.9.3"
+  }
+}
