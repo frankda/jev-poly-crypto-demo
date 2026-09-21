@@ -1,0 +1,7 @@
+# Upload only what the static dashboard build needs. Never .env, data/, src/ or node_modules.
+/*
+!/web
+!/scripts
+/scripts/*
+!/scripts/build-web.mjs
+!/vercel.json
