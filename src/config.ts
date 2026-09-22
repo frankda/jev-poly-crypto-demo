@@ -21,13 +21,15 @@ export function readConfig(env: Record<string, string | undefined> = process.env
   if (requireOrigin === "on" && !corsOrigin) throw new Error("REQUIRE_ORIGIN=on needs CORS_ORIGIN");
   const control = env.CONTROL ?? "on";
   if (control !== "on" && control !== "off") throw new Error("CONTROL must be on or off");
+  const ledgerEvents = env.LEDGER_EVENTS ?? "all";
+  if (ledgerEvents !== "all" && ledgerEvents !== "trades") throw new Error("LEDGER_EVENTS must be all or trades");
   const perpFeatures = env.PERP_FEATURES ?? "on";
   if (perpFeatures !== "on" && perpFeatures !== "off") throw new Error("PERP_FEATURES must be on or off");
   if ((env.TRADING_MODE ?? "paper") !== "paper") throw new Error("Only TRADING_MODE=paper is implemented; real orders are not supported");
   if (model === "jev" && !env.TYPESAFE_AI_API_KEY?.trim()) throw new Error("MODEL=jev requires TYPESAFE_AI_API_KEY in .env");
   const config = {
     dataMode, model, perpFeatures: perpFeatures === "on", jevModelId: env.JEV_MODEL_ID ?? "jev-latest",
-    entryDecider, control: control === "on", corsOrigin, requireOrigin: requireOrigin === "on", maxSseClients: num("MAX_SSE_CLIENTS", 200, 1, 10000), ledger, dataDir: env.DATA_DIR ?? `data/${dataMode === "demo" ? "demo" : "paper"}`,
+    entryDecider, control: control === "on", corsOrigin, requireOrigin: requireOrigin === "on", maxSseClients: num("MAX_SSE_CLIENTS", 200, 1, 10000), ledger, persistAllEvents: ledgerEvents === "all", dataDir: env.DATA_DIR ?? `data/${dataMode === "demo" ? "demo" : "paper"}`,
     host: env.HOST ?? "127.0.0.1", port: num("PORT", 3000, 1024, 65535),
     pollMs: num("POLL_MS", 2000, 1000, 60000),
     // "fixed" = constant POLL_MS; otherwise the interval depends on time elapsed in the round.

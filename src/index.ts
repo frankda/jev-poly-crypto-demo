@@ -31,7 +31,7 @@ function sqliteLedger(): Ledger {
     const fd = openSync(lockPath, "wx", 0o600); writeFileSync(fd, String(process.pid)); closeSync(fd);
   }
   process.on("exit", () => { try { if (readFileSync(lockPath, "utf8") === String(process.pid)) unlinkSync(lockPath); } catch {} });
-  return new Store(dbPath, config.bankroll);
+  return new Store(dbPath, config.bankroll, config.persistAllEvents);
 }
 const store = config.ledger === "memory" ? new MemoryStore(config.bankroll) : sqliteLedger();
 const engine = new Engine(config, config.dataMode === "demo" ? new DemoData() : new PolymarketData({ perp: config.perpFeatures, maxDataAgeMs: config.maxDataAgeMs }), config.model === "jev" ? new JevModel(config) : new MockModel(config), store);

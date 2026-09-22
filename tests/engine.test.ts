@@ -161,3 +161,27 @@ test("old one-trade-per-round ledgers migrate in place without losing positions"
     s.close(); new Store(path, 1000).close();
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("LEDGER_EVENTS=trades keeps trade state on disk but per-decision audit events only in memory", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "compact-"));
+  try {
+    const path = join(dir, "compact.sqlite");
+    let bid = .48;
+    const load = () => { const v = snapshot(); v.books.up.bids = [{ price: bid, size: 200 }]; v.books.up.asks = [{ price: bid + .02, size: 200 }]; return v; };
+    const s = new Store(path, 1000, false), engine = new Engine(config, data(load), goodModel, s, () => now);
+    await engine.tick(); bid = .8; await engine.tick();
+    const kinds = s.recentEvents(50).map(e => e.kind);
+    expect(kinds).toContain("decision"); expect(kinds).toContain("paper-fill"); expect(kinds).toContain("paper-exit");
+    const ids = s.recentEvents(50).map(e => e.id);
+    expect(new Set(ids).size).toBe(ids.length); expect([...ids].sort((a, b) => b - a)).toEqual(ids);
+    expect(engine.view().decisionPoints).toHaveLength(2);
+    s.close();
+    const reopened = new Store(path, 1000, false);
+    expect(reopened.trades()).toHaveLength(1); expect(reopened.trades()[0]!.exit).toBeTruthy();
+    const onDisk = reopened.db.query<{ kind: string }, []>("SELECT kind FROM events").all().map(r => r.kind);
+    expect(onDisk.sort()).toEqual(["paper-exit", "paper-fill"]);
+    reopened.record(now, "decision", { market: { slug: "x" }, decision: null, point: null });
+    expect(reopened.recentEvents(1)[0]!.id).toBeGreaterThan(Math.max(...ids));
+    reopened.close();
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

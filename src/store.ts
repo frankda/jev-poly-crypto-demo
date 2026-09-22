@@ -1,9 +1,16 @@
 import { Database } from "bun:sqlite";
 import type { Account, Decision, DecisionPoint, ExitQuote, Ledger, Quote, Resolution, Signal, Snapshot, Trade } from "./types";
 
+/** Events that make up the trade state; always persisted. */
+export const TRADE_EVENT_KINDS = new Set(["paper-fill", "paper-exit", "settlement", "control"]);
+type StoredEvent = { id: number; at: number; kind: string; data: any };
+
 export class Store implements Ledger {
   readonly db: Database;
-  constructor(path: string, readonly bankroll: number) {
+  // LEDGER_EVENTS=trades: per-decision audit events stay in this bounded memory ring instead of on disk.
+  private ring: StoredEvent[] = [];
+  private lastId: number;
+  constructor(path: string, readonly bankroll: number, private persistAll = true, private ringSize = 2000) {
     this.db = new Database(path, { create: true, strict: true });
     this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -19,6 +26,10 @@ export class Store implements Ledger {
     this.db.query("INSERT OR IGNORE INTO meta VALUES ('bankroll', ?)").run(String(bankroll));
     const existing = this.db.query<{ value: string }, []>("SELECT value FROM meta WHERE key='bankroll'").get();
     if (Number(existing?.value) !== bankroll) throw new Error("BANKROLL_USD differs from the saved ledger; use a new DATA_DIR for a new experiment");
+    const diskMax = this.db.query<{ id: number | null }, []>("SELECT max(id) AS id FROM events").get()?.id ?? 0;
+    // Memory-only ids from a previous run are gone; starting at the clock (at µs resolution: far more headroom than events need)
+    // keeps ids increasing across restarts so the dashboard never mistakes a new event for an old one.
+    this.lastId = persistAll ? diskMax : Math.max(diskMax, Date.now() * 1000);
   }
   close() { this.db.close(); }
   trades(limit = 100): Trade[] {
@@ -43,17 +54,33 @@ export class Store implements Ledger {
       openTrades: open.length, settledTrades: settled.length, wins: settled.filter(t => (t.pnl ?? 0) > 0).length };
   }
   record(at: number, kind: string, data: unknown) {
-    const result = this.db.query("INSERT INTO events(at,kind,data) VALUES(?,?,?)").run(at, kind, JSON.stringify(data));
-    return Number(result.lastInsertRowid);
+    // One id sequence across disk and memory keeps the dashboard's event ordering consistent.
+    const id = ++this.lastId;
+    if (this.persistAll || TRADE_EVENT_KINDS.has(kind)) this.db.query("INSERT INTO events(id,at,kind,data) VALUES(?,?,?,?)").run(id, at, kind, JSON.stringify(data));
+    else {
+      this.ring.push({ id, at, kind, data: structuredClone(data) });
+      if (this.ring.length > this.ringSize) this.ring.splice(0, this.ring.length - this.ringSize);
+    }
+    return id;
   }
   recentDecisionPoints(limit = 180): DecisionPoint[] {
+    if (!this.persistAll) return this.ring.filter(e => e.kind === "decision" && e.data?.point).slice(-limit).map(e => e.data.point);
     return this.db.query<{ data: string }, [number]>("SELECT data FROM events WHERE kind='decision' AND json_extract(data,'$.point') IS NOT NULL ORDER BY id DESC LIMIT ?")
       .all(limit).map(row => (JSON.parse(row.data) as { point: DecisionPoint }).point).reverse();
   }
-  recentEvents(limit = 60) {
-    return this.db.query<{ id: number; at: number; kind: string; data: string }, [number]>("SELECT * FROM events ORDER BY id DESC LIMIT ?").all(limit).map(r => ({ ...r, data: JSON.parse(r.data) }));
+  recentEvents(limit = 60): StoredEvent[] {
+    const disk = this.db.query<{ id: number; at: number; kind: string; data: string }, [number]>("SELECT * FROM events ORDER BY id DESC LIMIT ?").all(limit).map(r => ({ ...r, data: JSON.parse(r.data) }));
+    if (this.persistAll) return disk;
+    return [...disk, ...this.ring.slice(-limit)].sort((a, b) => b.id - a.id).slice(0, limit);
   }
   lastEvaluation(): { slug: string; decision: Decision } | null {
+    if (!this.persistAll) {
+      for (let i = this.ring.length - 1; i >= 0; i--) {
+        const e = this.ring[i]!;
+        if (e.kind === "decision" && e.data?.decision) return { slug: e.data.market.slug, decision: e.data.decision };
+      }
+      return null;
+    }
     const row = this.db.query<{ data: string }, []>("SELECT data FROM events WHERE kind='decision' AND json_extract(data,'$.decision') IS NOT NULL ORDER BY id DESC LIMIT 1").get();
     if (!row) return null;
     const data = JSON.parse(row.data) as { market: { slug: string }; decision: Decision };
