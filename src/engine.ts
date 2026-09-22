@@ -141,7 +141,9 @@ export class Engine {
           }
           point = { id: evaluationId, slug: snapshot.market.slug, at: decision.at, referenceAt: snapshot.reference!.timestamp,
             price: snapshot.reference!.price, direction: decision.rawScores.up === decision.rawScores.down ? "neutral" : decision.rawScores.up > decision.rawScores.down ? "up" : "down",
-            decision, action: this.signal.action };
+            decision, action: this.signal.action,
+            quotes: { up: { bid: snapshot.books.up.bids[0]?.price ?? null, ask: snapshot.books.up.asks[0]?.price ?? null },
+              down: { bid: snapshot.books.down.bids[0]?.price ?? null, ask: snapshot.books.down.asks[0]?.price ?? null } } };
           this.points = [...this.points.filter(p => p.slug === snapshot.market.slug), point].slice(-180);
         }
       }
