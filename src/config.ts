@@ -1,3 +1,5 @@
+import { DEFAULT_POLL_SCHEDULE, parsePollSchedule } from "./cadence";
+
 export function readConfig(env: Record<string, string | undefined> = process.env) {
   const num = (key: string, fallback: number, min: number, max: number) => {
     const value = env[key]?.trim() ? Number(env[key]) : fallback;
@@ -23,6 +25,8 @@ export function readConfig(env: Record<string, string | undefined> = process.env
     control: control === "on", corsOrigin, maxSseClients: num("MAX_SSE_CLIENTS", 200, 1, 10000), ledger, dataDir: env.DATA_DIR ?? `data/${dataMode === "demo" ? "demo" : "paper"}`,
     host: env.HOST ?? "127.0.0.1", port: num("PORT", 3000, 1024, 65535),
     pollMs: num("POLL_MS", 2000, 1000, 60000),
+    // "fixed" = constant POLL_MS; otherwise the interval depends on time elapsed in the round.
+    pollSchedule: (env.POLL_SCHEDULE ?? DEFAULT_POLL_SCHEDULE).trim() === "fixed" ? null : parsePollSchedule(env.POLL_SCHEDULE ?? DEFAULT_POLL_SCHEDULE),
     modelTimeoutMs: num("MODEL_TIMEOUT_MS", 3000, 100, 30000),
     maxDataAgeMs: num("MAX_DATA_AGE_MS", 15000, 1000, 60000),
     minSecondsLeft: num("MIN_SECONDS_LEFT", 30, 5, 290),

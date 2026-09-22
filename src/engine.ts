@@ -1,7 +1,7 @@
 import type { Config } from "./config";
 import { modelState, type Model } from "./model";
 import { evaluate, evaluateExit, observationGuard } from "./policy";
-import { nextCycleAt } from "./cadence";
+import { clampToRound, nextCycleAt, pollIntervalAt } from "./cadence";
 import type { Decision, DecisionPoint, Ledger, MarketData, Signal, Snapshot } from "./types";
 
 export class Engine {
@@ -32,6 +32,9 @@ export class Engine {
     this.lastEvaluation = store.lastEvaluation();
     this.points = store.recentDecisionPoints();
   }
+  private intervalAt(at: number) {
+    return this.config.pollSchedule ? pollIntervalAt(at, this.config.pollSchedule) : this.config.pollMs;
+  }
   subscribe(callback: () => void) { this.listeners.add(callback); return () => { this.listeners.delete(callback); }; }
   private emit() { for (const callback of this.listeners) callback(); }
   setPaused(paused: boolean) {
@@ -44,7 +47,7 @@ export class Engine {
       paused: this.paused, controls: this.config.control, busy: this.busy, updatedAt: this.updatedAt, serverTime: this.now(), feed: this.data.status(),
       error: this.error, settlementError: this.settlementError, snapshot: this.latest, decision: this.decision, lastEvaluation: this.lastEvaluation, signal: this.signal,
       decisionPoints: this.points.filter(p => p.slug === this.latest?.market.slug),
-      cadence: { targetMs: this.config.pollMs, actualIntervalMs: this.actualIntervalMs, cycleMs: this.cycleMs,
+      cadence: { targetMs: this.intervalAt(this.cycleStartedAt ?? this.now()), actualIntervalMs: this.actualIntervalMs, cycleMs: this.cycleMs,
         cycleStartedAt: this.cycleStartedAt, nextTickAt: this.nextTickAt, stage: this.stage },
       account: this.store.account(this.now()), trades: this.store.trades(50),
       events: this.store.recentEvents(25).map(e => ({ id: e.id, at: e.at, kind: e.kind, signal: e.data?.signal ?? null, decision: e.data?.decision ?? null, pnl: e.data?.pnl ?? null, message: e.data?.message ?? null })),
@@ -57,7 +60,7 @@ export class Engine {
     this.running = true; this.data.start();
     const loop = async () => {
       await this.tick();
-      if (this.running) this.timer = setTimeout(loop, Math.max(0, (this.nextTickAt ?? this.now() + this.config.pollMs) - this.now()));
+      if (this.running) this.timer = setTimeout(loop, Math.max(0, (this.nextTickAt ?? this.now() + this.intervalAt(this.now())) - this.now()));
     };
     void loop();
   }
@@ -152,7 +155,9 @@ export class Engine {
     } finally {
       this.updatedAt = this.now(); this.busy = false; this.stage = "idle";
       this.cycleMs = this.updatedAt - startedAt;
-      this.nextTickAt = nextCycleAt(startedAt, this.updatedAt, this.config.pollMs, this.failures);
+      const interval = this.intervalAt(startedAt);
+      const next = nextCycleAt(startedAt, this.updatedAt, interval, this.failures);
+      this.nextTickAt = this.failures > 0 || !this.config.pollSchedule ? next : clampToRound(startedAt, next);
       this.emit();
     }
   }
