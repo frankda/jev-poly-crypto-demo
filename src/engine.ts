@@ -47,7 +47,7 @@ export class Engine {
       paused: this.paused, controls: this.config.control, busy: this.busy, updatedAt: this.updatedAt, serverTime: this.now(), feed: this.data.status(),
       error: this.error, settlementError: this.settlementError, snapshot: this.latest, decision: this.decision, lastEvaluation: this.lastEvaluation, signal: this.signal,
       decisionPoints: this.points.filter(p => p.slug === this.latest?.market.slug),
-      cadence: { targetMs: this.intervalAt(this.cycleStartedAt ?? this.now()), actualIntervalMs: this.actualIntervalMs, cycleMs: this.cycleMs,
+      cadence: { targetMs: this.intervalAt(this.cycleStartedAt ?? this.now()), modelStopSecondsLeft: this.config.modelStopSecondsLeft, actualIntervalMs: this.actualIntervalMs, cycleMs: this.cycleMs,
         cycleStartedAt: this.cycleStartedAt, nextTickAt: this.nextTickAt, stage: this.stage },
       account: this.store.account(this.now()), trades: this.store.trades(50),
       events: this.store.recentEvents(25).map(e => ({ id: e.id, at: e.at, kind: e.kind, signal: e.data?.signal ?? null, decision: e.data?.decision ?? null, pnl: e.data?.pnl ?? null, message: e.data?.message ?? null })),

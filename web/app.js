@@ -157,9 +157,12 @@ function refreshClock() {
   const points = state.decisionPoints ?? [], newest = points.at(-1), previous = points.at(-2), direction = directionOf(d);
   const age = d ? Math.max(0, now - d.at) : 0;
   const oldDecision = d && (age > state.risk.maxDataAgeMs || !connected);
+  // The engine makes no Jev calls in the last seconds of a round; the next call comes when the next round opens.
+  const stopSeconds = state.cadence?.modelStopSecondsLeft ?? 0;
+  const quiet = Boolean(m && stopSeconds > 0 && m.endMs - now < stopSeconds * 1000);
   const flipped = !oldDecision && newest && previous && newest.direction !== previous.direction;
   $('signal-box').dataset.stale = String(Boolean(oldDecision));
-  set('direction-change', oldDecision ? `Earlier decision · ${Math.floor(age / 1000)}s ago · waiting for update` : flipped ? `${previous.direction.toUpperCase()} → ${newest.direction.toUpperCase()} · direction flipped` : d ? 'Latest decision · raw model score' : 'Decides once market data is complete');
+  set('direction-change', quiet && d ? `Last decision of this round · ${Math.floor(age / 1000)}s ago · Jev pauses in the last ${stopSeconds}s` : oldDecision ? `Earlier decision · ${Math.floor(age / 1000)}s ago · waiting for update` : flipped ? `${previous.direction.toUpperCase()} → ${newest.direction.toUpperCase()} · direction flipped` : d ? 'Latest decision · raw model score' : 'Decides once market data is complete');
   $('direction-change').className = oldDecision ? 'expired' : flipped ? 'flipped' : '';
   set('chart-direction', direction ? `${oldDecision ? 'Last ' : ''}JEV ${direction === 'up' ? '↗ UP' : direction === 'down' ? '↘ DOWN' : 'NEUTRAL'} ${pct(Math.max(d.rawScores.up, d.rawScores.down))}` : 'Waiting for Jev');
   if (m) { const seconds = Math.max(0, Math.floor((m.endMs - now) / 1000)); set('countdown', `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`); }
@@ -177,10 +180,11 @@ function refreshClock() {
     else if (state.paused) status = 'Decisions and entries paused';
     else if (state.error) status = 'Request failed, retrying with backoff';
     else if (late) status = `Request running for ${(elapsed / 1000).toFixed(1)}s · waiting, not queuing more`;
+    else if (quiet) status = `No Jev calls in the last ${stopSeconds}s · next evaluation when the next round opens in ${Math.max(0, (m.endMs - now) / 1000).toFixed(1)}s`;
     else if (state.busy) status = ({ 'market-data': 'Reading live market data…', inference: 'Jev is deciding…', quotes: 'Re-checking latest quotes…' })[cadence.stage] ?? 'Evaluating…';
     else status = `Next evaluation in ${Math.max(0, (cadence.nextTickAt - now) / 1000).toFixed(1)}s`;
     set('cycle-status', status); $('cycle-status').className = late || state.error ? 'delayed' : '';
-    $('cadence-progress').style.width = `${state.paused || !connected ? 0 : Math.min(100, elapsed / cadence.targetMs * 100)}%`;
+    $('cadence-progress').style.width = `${state.paused || !connected || quiet ? 0 : Math.min(100, elapsed / cadence.targetMs * 100)}%`;
   }
 }
 $('pause').addEventListener('click', async () => {

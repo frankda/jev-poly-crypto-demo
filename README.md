@@ -65,7 +65,7 @@ The default shrink weight is 0.5 (set `SCORE_WEIGHT=1` to compare against Jev's 
 
 Each model result that passes freshness and round checks leaves a green (Up) / red (Down) dot at its input reference price and triggers one expanding ring. The DECISION card and the new log entry highlight together, and a direction flip is called out. SSE heartbeats, history replay and duplicate pushes never masquerade as new decisions. Stale scores are clearly marked as earlier decisions.
 
-The model is called every 6 s (`POLL_SCHEDULE`, default `300:6000`; a schedule can still vary the interval by how far into the round it is), and not at all in the last 30 s of a round (`MODEL_STOP_SECONDS_LEFT`): positions still open then are held to official settlement. Scheduling is start-to-start, so time spent on the request counts toward the interval rather than sleeping a full interval after it completes. Only one request is in flight; timeouts and slow requests skip missed slots instead of piling up, a tick never spills into the next round, and failures back off exponentially. The dashboard shows the target interval, the actual interval between results and the current stage. While market data is complete and more than 30 s remain, the model keeps being called for observation even outside the entry window, while holding or when risk limits block entries; entry restrictions apply independently. Model calls stop when reliable data is missing or while paused; settlement checks run independently.
+The model is called every 6 s (`POLL_SCHEDULE`, default `300:6000`; a schedule can still vary the interval by how far into the round it is), and not at all in the last 30 s of a round (`MODEL_STOP_SECONDS_LEFT`): positions still open then are held to official settlement. Scheduling is start-to-start, so time spent on the request counts toward the interval rather than sleeping a full interval after it completes. Only one request is in flight; timeouts and slow requests skip missed slots instead of piling up, a tick never spills into the next round, and failures back off exponentially. The dashboard shows the target interval, the actual interval between results and the current stage, counting down to the next call; in the last 30 s it shows that Jev is paused until the next round opens. While market data is complete and more than 30 s remain, the model keeps being called for observation even outside the entry window, while holding or when risk limits block entries; entry restrictions apply independently. Model calls stop when reliable data is missing or while paused; settlement checks run independently.
 
 ### Fees and simulated fills
 
@@ -162,7 +162,7 @@ Same split as jev-trader. The engine must run continuously (a decision every few
 | --- | --- |
 | `TYPESAFE_AI_API_KEY` | Your key (set on the server only) |
 | `DATA_MODE` / `MODEL` | `live` / `jev` |
-| `LEDGER` | `memory` |
+| `LEDGER` / `LEDGER_EVENTS` / `DATA_DIR` | `sqlite` / `trades` / a persistent directory (e.g. systemd `StateDirectory`), so the paper balance, positions and trade history survive restarts and code updates; `memory` resets them on every restart |
 | `CONTROL` | `off` |
 | `HOST` / `PORT` | `127.0.0.1` / a free port that the reverse proxy forwards to |
 | `CORS_ORIGIN` | Your Vercel URL, e.g. `https://your-project.vercel.app` |
@@ -173,7 +173,7 @@ Measured on a 2 vCPU server, the engine uses about 100 MB of memory and roughly 
 
 **Dashboard (Vercel)**: set the project environment variable `JEV_API_URL` to the engine's public URL (https, no path) and redeploy. The build command `node scripts/build-web.mjs` (configured in `vercel.json`) writes it into `config.js` and generates a CSP that only allows connecting to that URL.
 
-Notes: with `LEDGER=memory` the ledger resets on every restart. Binance blocks egress IPs from some regions (e.g. the US); when blocked, the perpetual features are null and everything else keeps working.
+To update the engine, replace the code and restart the service; the SQLite ledger in `DATA_DIR` is kept, so the balance continues (keep `BANKROLL_USD` unchanged, or startup is refused). Notes: with `LEDGER=memory` the ledger resets on every restart. Binance blocks egress IPs from some regions (e.g. the US); when blocked, the perpetual features are null and everything else keeps working.
 
 ## References
 
