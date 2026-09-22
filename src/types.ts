@@ -49,10 +49,14 @@ export type PerpFeatures = {
   sinceWindowStartBps: number | null;
   basisVsChainlinkSpotBps: number | null;
 };
+export type EntryAction = "buy_up" | "buy_down" | "wait";
+export interface EntryDecision { action: EntryAction; probabilities: Record<EntryAction, number> }
 export interface Decision {
   model: string;
   scores: Record<Side, number>;
   rawScores: Record<Side, number>;
+  /** The model's own open-a-trade call (ENTRY_DECIDER=jev); null when missing or malformed. */
+  entry?: EntryDecision | null;
   latencyMs: number;
   inputTokens: number;
   at: number;

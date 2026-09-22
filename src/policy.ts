@@ -88,12 +88,29 @@ export function riskGuard(account: Account, c: Config): string | null {
   return null;
 }
 
+const pct = (n: number) => `${(n * 100).toFixed(0)}%`;
+/** ENTRY_DECIDER=jev: the model's own buy/wait call opens trades; only execution feasibility is checked here. */
+function jevEntry(s: Snapshot, d: Decision, c: Config): Signal {
+  const e = d.entry;
+  if (!e) return { action: "wait", reason: "Jev gave no valid entry decision; waiting" };
+  const odds = `buy UP ${pct(e.probabilities.buy_up)} · buy DOWN ${pct(e.probabilities.buy_down)} · wait ${pct(e.probabilities.wait)}`;
+  if (e.action === "wait") return { action: "wait", reason: `Jev chose to wait (${odds})` };
+  const side: Side = e.action === "buy_up" ? "up" : "down", label = side.toUpperCase();
+  const b = s.books[side], bid = b.bids[0], ask = b.asks[0];
+  if (!ask || (bid && bid.price >= ask.price)) return { action: "wait", reason: `Jev chose buy ${label}, but the ${label} book has no valid ask` };
+  const q = quoteBuy(b, side, c.tradeUsd, s.market.fee!, c.slippageBuffer);
+  if (!q) return { action: "wait", reason: `Jev chose buy ${label}, but visible depth cannot fill $${c.tradeUsd} within slippage` };
+  q.edge = d.scores[side] - q.total / q.shares;
+  return { action: side, quote: q, reason: `Jev chose buy ${label} (${odds}) · cost incl. fees ${(q.total / q.shares * 100).toFixed(1)}¢` };
+}
+
 export function evaluate(s: Snapshot, d: Decision, account: Account, holding: boolean, c: Config, now: number): Signal {
   const wait = (reason: string): Signal => ({ action: "wait", reason });
   const guard = dataGuard(s, c, now) ?? riskGuard(account, c);
   if (guard) return wait(guard);
   if (now - d.at > c.maxDataAgeMs || d.at > now + 2000) return wait("Model result is stale");
   if (holding) return wait("Position already open; at most one at a time");
+  if (c.entryDecider === "jev") return jevEntry(s, d, c);
   const candidates: Quote[] = [];
   for (const side of ["up", "down"] as const) {
     if (!Number.isFinite(d.scores[side]) || d.scores[side] < c.minScore || d.scores[side] > 1) continue;

@@ -3,7 +3,7 @@ import type { Account, Decision, Snapshot } from "../src/types";
 export const startMs = 1800000000000;
 export const now = startMs + 90000;
 export const conditionId = `0x${"a".repeat(64)}`;
-export const config = readConfig({ DATA_MODE: "demo" });
+export const config = readConfig({ DATA_MODE: "demo", ENTRY_DECIDER: "rules" });
 export const account: Account = { bankroll: 1000, cash: 1000, exposure: 0, realizedPnl: 0, dailyPnl: 0, openTrades: 0, settledTrades: 0, wins: 0 };
 export const decision: Decision = { model: "test", scores: { up: 0.75, down: 0.25 }, rawScores: { up: 1, down: 0 }, at: now, latencyMs: 1, inputTokens: 10 };
 export function snapshot(): Snapshot {

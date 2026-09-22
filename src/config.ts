@@ -14,6 +14,8 @@ export function readConfig(env: Record<string, string | undefined> = process.env
   if (ledger !== "sqlite" && ledger !== "memory") throw new Error("LEDGER must be sqlite or memory");
   const corsOrigin = env.CORS_ORIGIN?.trim() || null;
   if (corsOrigin && (!/^https?:\/\/[^/]+$/.test(corsOrigin) || corsOrigin.includes("*"))) throw new Error("CORS_ORIGIN must be one exact origin like https://example.vercel.app");
+  const entryDecider = env.ENTRY_DECIDER ?? "jev";
+  if (entryDecider !== "jev" && entryDecider !== "rules") throw new Error("ENTRY_DECIDER must be jev or rules");
   const control = env.CONTROL ?? "on";
   if (control !== "on" && control !== "off") throw new Error("CONTROL must be on or off");
   const perpFeatures = env.PERP_FEATURES ?? "on";
@@ -22,7 +24,7 @@ export function readConfig(env: Record<string, string | undefined> = process.env
   if (model === "jev" && !env.TYPESAFE_AI_API_KEY?.trim()) throw new Error("MODEL=jev requires TYPESAFE_AI_API_KEY in .env");
   const config = {
     dataMode, model, perpFeatures: perpFeatures === "on", jevModelId: env.JEV_MODEL_ID ?? "jev-latest",
-    control: control === "on", corsOrigin, maxSseClients: num("MAX_SSE_CLIENTS", 200, 1, 10000), ledger, dataDir: env.DATA_DIR ?? `data/${dataMode === "demo" ? "demo" : "paper"}`,
+    entryDecider, control: control === "on", corsOrigin, maxSseClients: num("MAX_SSE_CLIENTS", 200, 1, 10000), ledger, dataDir: env.DATA_DIR ?? `data/${dataMode === "demo" ? "demo" : "paper"}`,
     host: env.HOST ?? "127.0.0.1", port: num("PORT", 3000, 1024, 65535),
     pollMs: num("POLL_MS", 2000, 1000, 60000),
     // "fixed" = constant POLL_MS; otherwise the interval depends on time elapsed in the round.

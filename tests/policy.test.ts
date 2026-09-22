@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readConfig } from "../src/config";
-import { normalizeScores } from "../src/model";
+import { normalizeEntry, normalizeScores } from "../src/model";
 import { dataGuard, evaluate, evaluateExit, feePerShare, quoteBuy, quoteSell, riskGuard } from "../src/policy";
 import { account, config, decision, now, snapshot } from "./fixtures";
 
@@ -91,5 +91,38 @@ describe("model and configuration validation", () => {
   test("refuses live trading, missing credentials and invalid risk settings", () => {
     for (const env of [{ TRADING_MODE: "live" }, { MODEL: "jev" }, { MIN_EDGE: "NaN" }, { SCORE_WEIGHT: "2" }, { TRADE_USD: "5000" }, { MIN_SECONDS_LEFT: "250" }])
       expect(() => readConfig(env)).toThrow();
+  });
+});
+
+describe("ENTRY_DECIDER=jev", () => {
+  const jevConfig = readConfig({ DATA_MODE: "demo" });
+  const withEntry = (action: "buy_up" | "buy_down" | "wait", scores = { up: .5, down: .5 }) =>
+    ({ ...decision, scores, entry: { action, probabilities: { buy_up: action === "buy_up" ? .6 : .2, buy_down: action === "buy_down" ? .6 : .2, wait: action === "wait" ? .6 : .2 } } });
+  test("is the default, and Jev's buy call opens a trade even when the old 5¢ edge rule would refuse", () => {
+    expect(jevConfig.entryDecider).toBe("jev");
+    const signal = evaluate(snapshot(), withEntry("buy_up"), account, false, jevConfig, now);
+    expect(signal.action).toBe("up"); expect(signal.reason).toContain("Jev chose buy UP");
+    expect(evaluate(snapshot(), withEntry("buy_up"), account, false, config, now).action).toBe("wait");
+  });
+  test("Jev can buy DOWN, and choosing wait keeps the trader flat even with a large rule-based edge", () => {
+    expect(evaluate(snapshot(), withEntry("buy_down"), account, false, jevConfig, now).action).toBe("down");
+    const wait = evaluate(snapshot(), withEntry("wait", { up: .95, down: .05 }), account, false, jevConfig, now);
+    expect(wait.action).toBe("wait"); expect(wait.reason).toContain("Jev chose to wait");
+  });
+  test("missing entry answer, thin books and risk or data guards still block Jev's call", () => {
+    expect(evaluate(snapshot(), { ...decision, entry: null }, account, false, jevConfig, now).reason).toContain("no valid entry decision");
+    const thin = snapshot(); thin.books.up.asks = [{ price: .5, size: 1 }];
+    expect(evaluate(thin, withEntry("buy_up"), account, false, jevConfig, now).reason).toContain("depth");
+    expect(evaluate(snapshot(), withEntry("buy_up"), { ...account, cash: 5 }, false, jevConfig, now).action).toBe("wait");
+    expect(evaluate(snapshot(), withEntry("buy_up"), account, true, jevConfig, now).action).toBe("wait");
+    const stale = snapshot(); stale.reference!.timestamp = now - 16000;
+    expect(evaluate(stale, withEntry("buy_up"), account, false, jevConfig, now).action).toBe("wait");
+  });
+  test("entry answers are validated; ties resolve to wait", () => {
+    expect(normalizeEntry({ buy_up: .5, buy_down: .2, wait: .3 })?.action).toBe("buy_up");
+    expect(normalizeEntry({ buy_up: .4, buy_down: .4, wait: .2 })?.action).toBe("wait");
+    for (const bad of [null, {}, { buy_up: .9, buy_down: .9, wait: .1 }, { buy_up: -1, buy_down: 1, wait: 1 }, { buy_up: "x", buy_down: .5, wait: .5 }])
+      expect(normalizeEntry(bad)).toBeNull();
+    expect(() => readConfig({ DATA_MODE: "demo", ENTRY_DECIDER: "maybe" })).toThrow();
   });
 });
