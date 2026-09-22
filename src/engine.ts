@@ -100,7 +100,9 @@ export class Engine {
       const snapshot = await this.data.snapshot(this.now());
       this.latest = snapshot; this.decision = null; this.error = null;
       let point: DecisionPoint | null = null;
-      const guard = observationGuard(snapshot, this.config, this.now());
+      const secondsLeft = (snapshot.market.endMs - this.now()) / 1000;
+      const guard = observationGuard(snapshot, this.config, this.now())
+        ?? (secondsLeft < this.config.modelStopSecondsLeft ? `Last ${this.config.modelStopSecondsLeft} s of the round: no model calls; open positions are held to settlement` : null);
       if (this.paused || guard) {
         this.signal = { action: "wait", reason: this.paused ? "Model evaluation and entries paused; open positions still await settlement" : guard! };
       } else {

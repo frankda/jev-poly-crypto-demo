@@ -65,7 +65,7 @@ The default shrink weight is 0.5 (set `SCORE_WEIGHT=1` to compare against Jev's 
 
 Each model result that passes freshness and round checks leaves a green (Up) / red (Down) dot at its input reference price and triggers one expanding ring. The DECISION card and the new log entry highlight together, and a direction flip is called out. SSE heartbeats, history replay and duplicate pushes never masquerade as new decisions. Stale scores are clearly marked as earlier decisions.
 
-The model call interval depends on how far into the round it is (`POLL_SCHEDULE`, default: every 2 s for the first two minutes, every 4 s until 4:00, every 7 s in the last minute). Scheduling is start-to-start, so time spent on the request counts toward the interval rather than sleeping a full interval after it completes. Only one request is in flight; timeouts and slow requests skip missed slots instead of piling up, a tick never spills into the next round, and failures back off exponentially. The dashboard shows the target interval, the actual interval between results and the current stage. While market data is complete the model keeps being called for observation even outside the entry window, while holding or when risk limits block entries; entry restrictions apply independently. Model calls stop when reliable data is missing or while paused; settlement checks run independently.
+The model is called every 6 s (`POLL_SCHEDULE`, default `300:6000`; a schedule can still vary the interval by how far into the round it is), and not at all in the last 30 s of a round (`MODEL_STOP_SECONDS_LEFT`): positions still open then are held to official settlement. Scheduling is start-to-start, so time spent on the request counts toward the interval rather than sleeping a full interval after it completes. Only one request is in flight; timeouts and slow requests skip missed slots instead of piling up, a tick never spills into the next round, and failures back off exponentially. The dashboard shows the target interval, the actual interval between results and the current stage. While market data is complete and more than 30 s remain, the model keeps being called for observation even outside the entry window, while holding or when risk limits block entries; entry restrictions apply independently. Model calls stop when reliable data is missing or while paused; settlement checks run independently.
 
 ### Fees and simulated fills
 
@@ -77,8 +77,9 @@ Each trade amount includes principal plus the cash equivalent of fees. Buys walk
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `POLL_SCHEDULE` | `120:2000,240:4000,300:7000` | Decision interval by time elapsed in the round: 2 s for the first 2 minutes, 4 s for 2–4 minutes, 7 s for the last minute. Set to `fixed` to use `POLL_MS` |
+| `POLL_SCHEDULE` | `300:6000` | Decision interval by time elapsed in the round (`endSecond:intervalMs`, ending at 300): every 6 s for the whole round by default, e.g. `120:2000,240:4000,300:7000` to vary it. Set to `fixed` to use `POLL_MS` |
 | `POLL_MS` | 2000 | Fixed interval when `POLL_SCHEDULE=fixed`; slow requests skip slots, one in flight |
+| `MODEL_STOP_SECONDS_LEFT` | 30 | No model calls in the last N seconds of a round; open positions are held to settlement. `0` disables |
 | `MODEL_TIMEOUT_MS` | 3000 | Model request timeout; SDK retries are disabled |
 | `MAX_DATA_AGE_MS` | 15000 | Maximum age of the reference price and order books |
 | `MIN_SECONDS_LEFT` / `MAX_SECONDS_LEFT` | 30 / 240 | Entries are only considered with 30–240 seconds left |
@@ -166,6 +167,7 @@ Same split as jev-trader. The engine must run continuously (a decision every few
 | `HOST` / `PORT` | `127.0.0.1` / a free port that the reverse proxy forwards to |
 | `CORS_ORIGIN` | Your Vercel URL, e.g. `https://your-project.vercel.app` |
 | `SCORE_WEIGHT` / `DAILY_LOSS_LIMIT_USD` | As needed, e.g. `1` / `off` |
+| `POLL_SCHEDULE` / `MODEL_STOP_SECONDS_LEFT` | Leave unset for the defaults (a Jev call every 6 s, none in the last 30 s). An env file copied from an older `.env.example` sets `POLL_SCHEDULE=120:2000,240:4000,300:7000`; remove that line or set `300:6000` |
 
 Measured on a 2 vCPU server, the engine uses about 100 MB of memory and roughly 10–15% of one core. Capping it in systemd (e.g. `MemoryMax=300M`, `CPUQuota=50%`) keeps it from affecting other services.
 

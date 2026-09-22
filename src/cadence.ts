@@ -8,7 +8,7 @@ export function nextCycleAt(startedAt: number, finishedAt: number, intervalMs: n
 export const ROUND_MS = 300000;
 /** Interval by time elapsed in the 5-minute round: [endSecond, intervalMs] pairs, ascending. */
 export type PollSchedule = [number, number][];
-export const DEFAULT_POLL_SCHEDULE = "120:2000,240:4000,300:7000";
+export const DEFAULT_POLL_SCHEDULE = "300:6000";
 
 export function parsePollSchedule(value: string): PollSchedule {
   const steps = value.split(",").map(part => {

@@ -37,6 +37,8 @@ export function readConfig(env: Record<string, string | undefined> = process.env
     modelTimeoutMs: num("MODEL_TIMEOUT_MS", 3000, 100, 30000),
     maxDataAgeMs: num("MAX_DATA_AGE_MS", 15000, 1000, 60000),
     minSecondsLeft: num("MIN_SECONDS_LEFT", 30, 5, 290),
+    // No model calls in the last N seconds of a round; open positions are held to settlement. 0 disables.
+    modelStopSecondsLeft: num("MODEL_STOP_SECONDS_LEFT", 30, 0, 290),
     maxSecondsLeft: num("MAX_SECONDS_LEFT", 240, 10, 300),
     bankroll: num("BANKROLL_USD", 1000, 1, 1e7),
     tradeUsd: num("TRADE_USD", 10, 1, 1e5),

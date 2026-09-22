@@ -186,3 +186,17 @@ test("LEDGER_EVENTS=trades keeps trade state on disk but per-decision audit even
     reopened.close();
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+test("no model calls in the last 30 s of a round; open positions are left to settlement", async () => {
+  let calls = 0;
+  const end = snapshot().market.endMs;
+  // A snapshot whose data are fresh at the given clock time.
+  const at = (t: number) => () => { const v = snapshot(); v.at = t; v.reference!.timestamp = t;
+    for (const b of Object.values(v.books)) { b.timestamp = t; b.receivedAt = t; } return v; };
+  const engine = new Engine(config, data(at(end - 29000)), { decide: async () => { calls++; return decision; } }, store(), () => end - 29000);
+  await engine.tick();
+  expect(calls).toBe(0);
+  expect(engine.signal.reason).toContain("no model calls");
+  const early = new Engine(config, data(at(end - 31000)), { decide: async () => { calls++; return decision; } }, store(), () => end - 31000);
+  await early.tick();
+  expect(calls).toBe(1);
+});

@@ -17,15 +17,13 @@ test("errors back off from completion and retain the one-minute ceiling", () => 
 import { clampToRound, parsePollSchedule, pollIntervalAt, DEFAULT_POLL_SCHEDULE } from "../src/cadence";
 import { readConfig } from "../src/config";
 
-test("default schedule: 2s for the first two minutes, 4s until 4:00, 7s in the last minute", () => {
+test("default schedule: every 6 s for the whole round; custom schedules still vary by elapsed time", () => {
   const s = parsePollSchedule(DEFAULT_POLL_SCHEDULE), round = 1800000000000 - (1800000000000 % 300000);
-  expect(pollIntervalAt(round, s)).toBe(2000);
-  expect(pollIntervalAt(round + 119999, s)).toBe(2000);
-  expect(pollIntervalAt(round + 120000, s)).toBe(4000);
-  expect(pollIntervalAt(round + 239999, s)).toBe(4000);
-  expect(pollIntervalAt(round + 240000, s)).toBe(7000);
-  expect(pollIntervalAt(round + 299999, s)).toBe(7000);
-  expect(pollIntervalAt(round + 300000, s)).toBe(2000);
+  for (const offset of [0, 119999, 240000, 299999, 300000]) expect(pollIntervalAt(round + offset, s)).toBe(6000);
+  const custom = parsePollSchedule("120:2000,240:4000,300:7000");
+  expect(pollIntervalAt(round + 119999, custom)).toBe(2000);
+  expect(pollIntervalAt(round + 120000, custom)).toBe(4000);
+  expect(pollIntervalAt(round + 240000, custom)).toBe(7000);
 });
 test("a slow last-minute tick never spills past the next round's opening", () => {
   const round = 1800000000000 - (1800000000000 % 300000);
@@ -34,6 +32,6 @@ test("a slow last-minute tick never spills past the next round's opening", () =>
 });
 test("POLL_SCHEDULE validates input and 'fixed' restores constant POLL_MS", () => {
   for (const bad of ["120:2000", "120:2000,100:4000,300:7000", "120:500,300:7000", "abc"]) expect(() => parsePollSchedule(bad)).toThrow();
-  expect(readConfig({ DATA_MODE: "demo" }).pollSchedule).toEqual([[120, 2000], [240, 4000], [300, 7000]]);
+  expect(readConfig({ DATA_MODE: "demo" }).pollSchedule).toEqual([[300, 6000]]);
   expect(readConfig({ DATA_MODE: "demo", POLL_SCHEDULE: "fixed" }).pollSchedule).toBeNull();
 });
