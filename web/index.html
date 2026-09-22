@@ -23,9 +23,9 @@
       <div class="workspace">
         <section class="panel market-panel">
           <div class="panel-head"><div class="market-title"><span class="coin">₿</span><div><h2>Bitcoin <span class="tag">5m</span></h2><p id="window">等待当前轮次</p></div></div><div class="countdown"><span>距离收盘</span><strong id="countdown">—:—</strong></div></div>
-          <div class="chart-live-row"><span id="chart-direction" class="chart-direction">等待 Jev 判断</span><span id="chart-evaluation">每个点对应一次模型判断 · 鼠标悬停查看详情</span></div>
+          <div class="chart-live-row"><span id="chart-direction" class="chart-direction">等待 Jev 判断</span><span id="chart-evaluation">每个点对应一次模型判断</span></div>
           <div class="price-row"><div><span class="label" id="reference-label">结算参考价格</span><strong id="reference">—</strong><span id="price-change" class="price-change">—</span></div><div class="anchor"><span class="label">本轮基准价 · PRICE TO BEAT</span><strong id="anchor">—</strong></div></div>
-          <div class="chart-wrap"><svg id="chart" viewBox="0 0 850 220" role="img" aria-label="本轮参考价格与 Jev 判断点"><g id="chart-grid"></g><path id="chart-area"></path><line id="anchor-line" x1="0" x2="850"></line><path id="chart-path"></path><line id="hover-line" y1="0" y2="220" hidden></line><g id="decision-dots"></g><circle id="chart-dot" r="4"></circle><circle id="hover-ring" r="6" hidden></circle><g id="decision-pulse" aria-hidden="true"></g><text id="chart-empty" x="425" y="110" text-anchor="middle">等待价格序列</text></svg><div id="chart-tip" class="chart-tip" role="tooltip" hidden></div></div>
+          <div class="chart-wrap"><svg id="chart" viewBox="0 0 850 220" role="img" aria-label="本轮参考价格与 Jev 判断点"><g id="chart-grid"></g><path id="chart-area"></path><line id="anchor-line" x1="0" x2="850"></line><path id="chart-path"></path><g id="decision-dots"></g><circle id="chart-dot" r="4"></circle><g id="decision-pulse" aria-hidden="true"></g><text id="chart-empty" x="425" y="110" text-anchor="middle">等待价格序列</text></svg></div>
           <div id="decision-tape" class="decision-tape" aria-label="本轮模型方向时间线"></div>
           <div class="chart-footer"><span id="chart-start">—</span><span id="anchor-source">基准价来源待确认</span><span id="chart-end">—</span></div>
           <div class="outcomes">

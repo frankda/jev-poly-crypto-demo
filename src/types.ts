@@ -66,8 +66,6 @@ export interface DecisionPoint {
   direction: Side | "neutral";
   decision: Decision;
   action: Signal["action"];
-  /** Polymarket top of book the model saw (absent on points recorded before this field existed). */
-  quotes?: Record<Side, { bid: number | null; ask: number | null }>;
 }
 export interface Quote {
   side: Side;

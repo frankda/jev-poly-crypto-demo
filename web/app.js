@@ -33,9 +33,9 @@ function paintChart(snapshot, decisions = []) {
   $('chart-empty').style.display = ticks.length < 2 ? '' : 'none';
   for (const id of ['chart-path', 'chart-area']) $(id).setAttribute('d', '');
   $('anchor-line').style.display = 'none'; $('chart-dot').style.display = 'none';
-  $('decision-dots').replaceChildren(); chartGeom = null;
+  $('decision-dots').replaceChildren();
   if (activePulse?.slug !== snapshot?.market.slug) { activePulse = null; $('decision-pulse').replaceChildren(); }
-  if (ticks.length < 2) { refreshHover(); return; }
+  if (ticks.length < 2) return;
   const low = Math.min(...values), high = Math.max(...values), padding = Math.max((high - low) * .2, 5);
   const x = t => (t - snapshot.market.startMs) / 300000 * 850;
   const y = price => 205 - (price - low + padding) / (high - low + 2 * padding) * 190;
@@ -44,54 +44,13 @@ function paintChart(snapshot, decisions = []) {
   $('chart-area').setAttribute('d', `M${x(ticks[0].timestamp)},220 L${points.join(' L')} L${x(ticks.at(-1).timestamp)},220 Z`);
   $('chart-dot').style.display = ''; $('chart-dot').setAttribute('cx', x(ticks.at(-1).timestamp)); $('chart-dot').setAttribute('cy', y(ticks.at(-1).price));
   for (const point of pointsOnChart) {
-    $('decision-dots').append(svgElement('circle', { cx: x(point.referenceAt), cy: y(point.price), r: point.id === decisions.at(-1)?.id ? 4 : 2.6, class: point.direction }));
+    const dot = svgElement('circle', { cx: x(point.referenceAt), cy: y(point.price), r: point.id === decisions.at(-1)?.id ? 4 : 2.6, class: point.direction });
+    const title = svgElement('title'); title.textContent = `${time(point.at)} · ${point.direction.toUpperCase()} · UP ${pct(point.decision.rawScores.up)} / DOWN ${pct(point.decision.rawScores.down)}`;
+    dot.append(title); $('decision-dots').append(dot);
   }
-  chartGeom = { x, y, points: pointsOnChart };
   if (activePulse) $('decision-pulse').setAttribute('transform', `translate(${x(activePulse.referenceAt)} ${y(activePulse.price)})`);
   if (Number.isFinite(anchor)) { $('anchor-line').style.display = ''; $('anchor-line').setAttribute('y1', y(anchor)); $('anchor-line').setAttribute('y2', y(anchor)); }
-  refreshHover();
 }
-// Hover inspection: snap to the nearest decision point and show its Jev scores and Polymarket quotes.
-let chartGeom = null, hoverId = null;
-function hideHover() {
-  hoverId = null;
-  for (const id of ['hover-line', 'hover-ring', 'chart-tip']) $(id).hidden = true;
-}
-function showHover(point) {
-  const { x, y, points } = chartGeom, cx = x(point.referenceAt), cy = y(point.price);
-  $('hover-line').setAttribute('x1', cx); $('hover-line').setAttribute('x2', cx); $('hover-line').hidden = false;
-  $('hover-ring').setAttribute('cx', cx); $('hover-ring').setAttribute('cy', cy); $('hover-ring').hidden = false;
-  const tip = $('chart-tip'); tip.replaceChildren();
-  for (const [label, value, tone] of tooltipRows(point, points.indexOf(point), time, usd)) {
-    if (tone === 'title') { const t = document.createElement('p'); t.className = 'title'; t.textContent = label; tip.append(t); continue; }
-    const row = document.createElement('div'), l = document.createElement('span'), v = document.createElement('strong');
-    row.className = 'row'; l.textContent = label; v.textContent = value; if (tone) v.className = tone;
-    row.append(l, v); tip.append(row);
-  }
-  tip.hidden = false;
-  // Map the point from SVG units to pixels inside .chart-wrap, then keep the box on-screen.
-  const svg = $('chart'), m = svg.getScreenCTM(), wrap = tip.parentElement.getBoundingClientRect();
-  if (!m) return;
-  const px = cx * m.a + m.e - wrap.left, py = cy * m.d + m.f - wrap.top;
-  const left = px + 14 + tip.offsetWidth > wrap.width ? px - 14 - tip.offsetWidth : px + 14;
-  tip.style.left = `${Math.max(0, left)}px`;
-  tip.style.top = `${Math.min(Math.max(0, py - tip.offsetHeight / 2), wrap.height - tip.offsetHeight)}px`;
-}
-function refreshHover() {
-  const point = chartGeom && hoverId !== null ? chartGeom.points.find(p => p.id === hoverId) : null;
-  point ? showHover(point) : hideHover();
-}
-function onChartPointer(event) {
-  const svg = $('chart'), m = svg.getScreenCTM();
-  if (!chartGeom || !m) return hideHover();
-  const vx = (event.clientX - m.e) / m.a;
-  const point = nearestPoint(chartGeom.points, chartGeom.x, vx);
-  if (!point) return hideHover();
-  hoverId = point.id; showHover(point);
-}
-$('chart').addEventListener('pointermove', onChartPointer);
-$('chart').addEventListener('pointerdown', onChartPointer);
-$('chart').addEventListener('pointerleave', hideHover);
 for (const y of [25, 85, 145, 205]) {
   const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   for (const [k, v] of Object.entries({ x1: 0, x2: 850, y1: y, y2: y })) line.setAttribute(k, v);
@@ -237,5 +196,5 @@ events.onopen = () => { connected = true; refreshClock(); };
 events.addEventListener('state', e => { try { render(JSON.parse(e.data)); } catch (error) { set('notice', `界面更新失败：${error.message}`); } });
 events.onerror = () => { connected = false; refreshClock(); };
 setInterval(refreshClock, 100);
-import { directionOf, nearestPoint, shouldPulse, tooltipRows } from './decision-view.js';
+import { directionOf, shouldPulse } from './decision-view.js';
 import { API_BASE } from './config.js';
