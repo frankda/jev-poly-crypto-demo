@@ -82,7 +82,7 @@ export class ReferenceFeed {
   private stopped = true;
   private lastMessage = 0;
   private retries = 0;
-  status = "等待连接 Chainlink RTDS";
+  status = "Waiting for Chainlink RTDS";
 
   ingest(value: unknown, now = Date.now()) {
     const msg = object.safeParse(value);
@@ -108,10 +108,10 @@ export class ReferenceFeed {
   }
   private connect() {
     if (this.stopped) return;
-    this.status = "连接 Chainlink RTDS…";
+    this.status = "Connecting to Chainlink RTDS…";
     const ws = this.socket = new WebSocket("wss://ws-live-data.polymarket.com");
     ws.onopen = () => {
-      this.lastMessage = Date.now(); this.retries = 0; this.status = "Chainlink RTDS 已连接";
+      this.lastMessage = Date.now(); this.retries = 0; this.status = "Chainlink RTDS connected";
       ws.send(JSON.stringify({ action: "subscribe", subscriptions: Object.keys(topics).map(topic => ({ topic, type: topic === "crypto_prices_chainlink" ? "*" : "update", filters: JSON.stringify({ symbol: "btc/usd" }) })) }));
       this.heartbeat = setInterval(() => {
         if (Date.now() - this.lastMessage > 20000) { ws.close(); return; }
@@ -122,9 +122,9 @@ export class ReferenceFeed {
       this.lastMessage = Date.now();
       try { this.ingest(JSON.parse(String(e.data))); } catch { /* RTDS also sends PONG. */ }
     };
-    ws.onerror = () => { this.status = "Chainlink RTDS 连接错误"; ws.close(); };
+    ws.onerror = () => { this.status = "Chainlink RTDS connection error"; ws.close(); };
     ws.onclose = () => {
-      clearInterval(this.heartbeat); this.status = "Chainlink RTDS 已断开，等待重连";
+      clearInterval(this.heartbeat); this.status = "Chainlink RTDS disconnected, reconnecting";
       if (!this.stopped) this.reconnect = setTimeout(() => this.connect(), Math.min(30000, 1000 * 2 ** Math.min(this.retries++, 5)));
     };
   }

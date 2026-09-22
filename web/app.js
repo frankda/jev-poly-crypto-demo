@@ -2,7 +2,7 @@ const $ = id => document.getElementById(id);
 const usd = n => Number.isFinite(n) ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(n) : '—';
 const pct = n => Number.isFinite(n) ? `${(n * 100).toFixed(1)}%` : '—';
 const cents = n => Number.isFinite(n) ? `${(n * 100).toFixed(1)}¢` : '—';
-const time = t => new Date(t).toLocaleTimeString('zh-CN', { hour12: false });
+const time = t => new Date(t).toLocaleTimeString('en-GB', { hour12: false });
 const set = (id, text) => { $(id).textContent = text; };
 let state = null, lastReceived = 0, connected = false, initialized = false, lastPointId = null;
 let activePulse = null, pulseTimer = null, flashTimer = null, lastRenderedEventId = null, lastTradeSignature = '';
@@ -65,17 +65,17 @@ function render(s) {
   if (newest) lastPointId = newest.id;
   initialized = true;
   set('data-mode', demo ? 'DEMO DATA' : 'LIVE DATA');
-  set('model-name', s.model); set('cash', usd(a.cash)); set('bankroll', `初始模拟资金 ${usd(a.bankroll)}`);
-  set('settlement-label', demo ? '持有至模拟轮次结算' : '持有至官方结算');
-  set('realized-note', demo ? '仅统计已模拟结算的演示仓位' : '仅统计已正式结算的模拟仓位');
+  set('model-name', s.model); set('cash', usd(a.cash)); set('bankroll', `Starting bankroll ${usd(a.bankroll)}`);
+  set('settlement-label', demo ? 'Held to simulated settlement' : 'Held to official settlement');
+  set('realized-note', demo ? 'Simulated-settled demo positions only' : 'Settled paper positions only');
   set('pnl', `${a.realizedPnl > 0 ? '+' : ''}${usd(a.realizedPnl)}`); $('pnl').className = a.realizedPnl >= 0 ? 'up' : 'down';
-  set('exposure', usd(a.exposure)); set('positions', `${a.openTrades} 笔等待结算 / 上限 ${usd(s.risk.maxExposure)}`);
-  set('winrate', a.settledTrades ? pct(a.wins / a.settledTrades) : '—'); set('settled', `已结算 ${a.settledTrades} 笔 · 盈利 ${a.wins} 笔`);
+  set('exposure', usd(a.exposure)); set('positions', `${a.openTrades} awaiting settlement / cap ${usd(s.risk.maxExposure)}`);
+  set('winrate', a.settledTrades ? pct(a.wins / a.settledTrades) : '—'); set('settled', `${a.settledTrades} settled · ${a.wins} won`);
   const warning = s.error || s.settlementError;
   $('notice').className = `notice${warning ? ' error' : ''}`;
-  set('notice', warning ? `等待恢复：${warning}${s.settlementError ? ' · 未结算仓位继续保留' : ''}` : demo ? '演示模式：行情、模型评分和结算均为合成数据，仅用于验证流程。切换真实行情需设置 DATA_MODE=live。' : s.model === 'mock-heuristic' ? '真实行情 / Mock 评分：当前使用测试规则。配置 TYPESAFE_AI_API_KEY 并设置 MODEL=jev 后启用 Jev。' : '真实行情 / Jev 决策 / 模拟执行：所有盈亏来自本地模拟账本，尚未验证策略有效性。');
+  set('notice', warning ? `Recovering: ${warning}${s.settlementError ? ' · unsettled positions are kept' : ''}` : demo ? 'Demo mode: market data, model scores and settlement are synthetic and only exercise the pipeline. Set DATA_MODE=live for real markets.' : s.model === 'mock-heuristic' ? 'Live data / mock scores: a test heuristic is in use. Configure TYPESAFE_AI_API_KEY and set MODEL=jev to enable Jev.' : 'Live data / Jev decisions / paper execution: all P&L comes from a simulated ledger; the strategy is not validated.');
   const act = s.signal.action;
-  set('action', act === 'wait' ? 'WAIT / 观望' : act === 'sell' ? `SELL ${s.signal.exit.side.toUpperCase()}` : `BUY ${act.toUpperCase()}`);
+  set('action', act === 'wait' ? 'WAIT' : act === 'sell' ? `SELL ${s.signal.exit.side.toUpperCase()}` : `BUY ${act.toUpperCase()}`);
   $('action').className = act === 'wait' ? '' : act === 'sell' ? s.signal.exit.side : act;
   set('reason', s.signal.reason); set('raw-up-score', pct(d?.rawScores.up)); set('raw-down-score', pct(d?.rawScores.down));
   for (const side of ['up', 'down']) { $(`raw-${side}-meter`).style.width = `${(d?.rawScores[side] ?? 0) * 100}%`; $(`raw-${side}-card`).classList.toggle('selected', direction === side); }
@@ -83,27 +83,27 @@ function render(s) {
   $('signal-box').dataset.evaluationId = newest?.id ?? '';
   set('model-direction', direction === 'up' ? '↗ UP' : direction === 'down' ? '↘ DOWN' : direction === 'neutral' ? 'NEUTRAL' : '—');
   set('direction-score', d ? pct(Math.max(d.rawScores.up, d.rawScores.down)) : '—');
-  set('decision-sequence', points.length ? `本轮 #${points.length}` : '等待判断');
+  set('decision-sequence', points.length ? `Decision #${points.length}` : 'Waiting');
   set('decision-time', d ? time(d.at) : '—');
   $('chart-direction').className = `chart-direction ${direction ?? ''}`;
-  set('chart-evaluation', newest ? `${time(newest.at)} · 本轮 ${points.length} 次判断` : '每个点对应一次模型判断');
+  set('chart-evaluation', newest ? `${time(newest.at)} · ${points.length} decisions this round` : 'Each dot is one model decision');
   set('up-score', pct(d?.scores.up)); set('down-score', pct(d?.scores.down));
   $('score-up').style.width = `${(d?.scores.up ?? .5) * 100}%`;
-  $('score-bar')?.setAttribute('aria-label', d ? `Up ${pct(d.scores.up)}, Down ${pct(d.scores.down)}` : '暂无模型评分');
-  set('score-caption', `权重 ${s.risk.scoreWeight}`);
-  set('latency', d ? `${Math.round(d.latencyMs)} ms` : '—'); set('min-edge', `≥ ${cents(s.risk.minEdge)} / 份`); set('trade-size', usd(s.risk.tradeUsd));
+  $('score-bar')?.setAttribute('aria-label', d ? `Up ${pct(d.scores.up)}, Down ${pct(d.scores.down)}` : 'No model score yet');
+  set('score-caption', `Weight ${s.risk.scoreWeight}`);
+  set('latency', d ? `${Math.round(d.latencyMs)} ms` : '—'); set('min-edge', `≥ ${cents(s.risk.minEdge)} / share`); set('trade-size', usd(s.risk.tradeUsd));
   set('feed', demo ? s.feed : `${m?.source ?? 'Chainlink'} · ${s.feed}`);
   set('cycle-duration', s.cadence?.cycleMs === null || !s.cadence ? '—' : `${(s.cadence.cycleMs / 1000).toFixed(2)} s`);
   $('pause').hidden = !s.controls;
-  $('pause').disabled = false; $('pause').textContent = s.paused ? '恢复判断 ▷' : '暂停判断 Ⅱ';
+  $('pause').disabled = false; $('pause').textContent = s.paused ? 'Resume ▷' : 'Pause Ⅱ';
   if (m) {
-    set('window', `${new Date(m.startMs).toLocaleDateString('zh-CN')} · ${time(m.startMs)} — ${time(m.endMs)}`);
-    set('reference-label', demo ? '合成参考价格 · DEMO' : m.source.toUpperCase());
+    set('window', `${new Date(m.startMs).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · ${time(m.startMs)} — ${time(m.endMs)}`);
+    set('reference-label', demo ? 'Synthetic reference · DEMO' : m.source.toUpperCase());
     set('reference', usd(s.snapshot.reference?.price)); set('anchor', usd(m.anchor?.price));
     const delta = m.anchor && s.snapshot.reference ? s.snapshot.reference.price / m.anchor.price - 1 : null;
     set('price-change', delta === null ? '—' : `${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(3)}%`); $('price-change').className = `price-change ${delta >= 0 ? 'up' : 'down'}`;
     set('chart-start', time(m.startMs)); set('chart-end', time(m.endMs));
-    set('anchor-source', m.anchor ? ({ 'gamma-metadata': '官方市场元数据', 'rtds-exact-boundary': 'RTDS 精确开盘时刻', demo: '合成开盘基准价' }[m.anchor.source]) : '缺少开盘基准价 · 跳过本轮');
+    set('anchor-source', m.anchor ? ({ 'gamma-metadata': 'Official market metadata', 'rtds-exact-boundary': 'RTDS exact opening tick', demo: 'Synthetic opening price' }[m.anchor.source]) : 'No price to beat · skipping round');
     for (const side of ['up', 'down']) { set(`${side}-ask`, cents(s.snapshot.books[side].asks[0]?.price)); set(`${side}-bid`, `Bid ${cents(s.snapshot.books[side].bids[0]?.price)}`); }
     $('market-link').hidden = demo; if (!demo) $('market-link').href = `https://polymarket.com/event/${encodeURIComponent(m.slug)}`;
   }
@@ -118,7 +118,7 @@ function render(s) {
 const signed = (n, digits, unit = '') => Number.isFinite(n) ? `${n >= 0 ? '+' : ''}${n.toFixed(digits)}${unit}` : '—';
 const tone = (id, n) => { $(id).className = Number.isFinite(n) && n !== 0 ? (n > 0 ? 'up' : 'down') : ''; };
 function renderPerp(p, at) {
-  set('perp-age', p ? `${p.source === 'demo' ? '合成 · ' : ''}${Math.max(0, (at - p.at) / 1000).toFixed(1)}s 前` : '无数据或已过期 · 按未知处理');
+  set('perp-age', p ? `${p.source === 'demo' ? 'Synthetic · ' : ''}${Math.max(0, (at - p.at) / 1000).toFixed(1)}s ago` : 'No data or stale · treated as unknown');
   set('perp-mid', p ? `${usd(p.mid)} · ${signed(p.basisVsChainlinkSpotBps, 1, 'bp')}` : '—');
   set('perp-book', p ? signed(p.depthImbalance.top5, 2) : '—'); tone('perp-book', p?.depthImbalance.top5);
   const f = p?.takerFlow.seconds30;
@@ -129,8 +129,8 @@ function renderTrades(trades) {
   $('trades').replaceChildren(); $('trades-empty').hidden = trades.length > 0;
   for (const t of trades.slice(0, 12)) {
     const row = document.createElement('tr');
-    const cells = [time(t.openedAt), t.side.toUpperCase(), cents(t.averagePrice), t.shares.toFixed(2), usd(t.total), t.settledAt === null ? '持有中' : `${t.exit ? `卖出 ${cents(t.exit.averagePrice)} · ` : ''}${t.pnl > 0 ? '+' : ''}${usd(t.pnl)}`];
-    if (state.dataMode === 'demo' && t.settledAt === null) cells[5] = '等待模拟结算';
+    const cells = [time(t.openedAt), t.side.toUpperCase(), cents(t.averagePrice), t.shares.toFixed(2), usd(t.total), t.settledAt === null ? 'Open' : `${t.exit ? `Sold ${cents(t.exit.averagePrice)} · ` : ''}${t.pnl > 0 ? '+' : ''}${usd(t.pnl)}`];
+    if (state.dataMode === 'demo' && t.settledAt === null) cells[5] = 'Awaiting simulated settlement';
     cells.forEach((text, i) => { const td = document.createElement('td'); td.textContent = text; if (i === 1) td.className = t.side; if (i === 5 && t.pnl !== null) td.className = t.pnl >= 0 ? 'up' : 'down'; row.append(td); });
     $('trades').append(row);
   }
@@ -146,7 +146,7 @@ function renderEvents(events) {
     clock.textContent = time(e.at); kind.textContent = direction ? `JEV ${direction.toUpperCase()} · UP ${pct(e.decision.rawScores.up)} / DOWN ${pct(e.decision.rawScores.down)}` : e.kind.toUpperCase();
     if (direction) li.dataset.direction = direction;
     if (previousNewest !== null && e.id > previousNewest) li.classList.add('new-event');
-    p.append(kind, document.createTextNode(e.signal?.reason ?? e.message ?? (e.kind === 'paper-exit' ? `模拟卖出 · 收益 ${usd(e.pnl)}` : e.pnl !== null ? `结算收益 ${usd(e.pnl)}` : e.kind === 'paper-fill' ? '模拟买入已记录' : e.kind === 'model-evaluation' ? '模型输入与输出已记录' : '开仓控制已更新')));
+    p.append(kind, document.createTextNode(e.signal?.reason ?? e.message ?? (e.kind === 'paper-exit' ? `Paper sell · P&L ${usd(e.pnl)}` : e.pnl !== null ? `Settlement P&L ${usd(e.pnl)}` : e.kind === 'paper-fill' ? 'Paper buy recorded' : e.kind === 'model-evaluation' ? 'Model input and output recorded' : 'Trading control updated')));
     li.append(clock, p); $('events').append(li);
   }
 }
@@ -159,26 +159,26 @@ function refreshClock() {
   const oldDecision = d && (age > state.risk.maxDataAgeMs || !connected);
   const flipped = !oldDecision && newest && previous && newest.direction !== previous.direction;
   $('signal-box').dataset.stale = String(Boolean(oldDecision));
-  set('direction-change', oldDecision ? `历史判断 · ${Math.floor(age / 1000)} 秒前 · 等待更新` : flipped ? `${previous.direction.toUpperCase()} → ${newest.direction.toUpperCase()} · 方向切换` : d ? '最新判断 · 原始模型评分' : '等待完整行情后判断');
+  set('direction-change', oldDecision ? `Earlier decision · ${Math.floor(age / 1000)}s ago · waiting for update` : flipped ? `${previous.direction.toUpperCase()} → ${newest.direction.toUpperCase()} · direction flipped` : d ? 'Latest decision · raw model score' : 'Decides once market data is complete');
   $('direction-change').className = oldDecision ? 'expired' : flipped ? 'flipped' : '';
-  set('chart-direction', direction ? `${oldDecision ? '最近 ' : ''}JEV ${direction === 'up' ? '↗ UP' : direction === 'down' ? '↘ DOWN' : 'NEUTRAL'} ${pct(Math.max(d.rawScores.up, d.rawScores.down))}` : '等待 Jev 判断');
+  set('chart-direction', direction ? `${oldDecision ? 'Last ' : ''}JEV ${direction === 'up' ? '↗ UP' : direction === 'down' ? '↘ DOWN' : 'NEUTRAL'} ${pct(Math.max(d.rawScores.up, d.rawScores.down))}` : 'Waiting for Jev');
   if (m) { const seconds = Math.max(0, Math.floor((m.endMs - now) / 1000)); set('countdown', `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`); }
   const stale = !connected || Date.now() - lastReceived > 20000 || state.error || (state.snapshot && now - state.snapshot.at > state.risk.maxDataAgeMs);
-  set('connection', stale ? '等待数据' : '引擎已连接'); $('connection-dot').style.background = stale ? '#dda671' : '#c2ee82';
-  set('updated', state.updatedAt ? `最后评估 ${time(state.updatedAt)} · ${state.risk.dailyLossLimit === null ? '当日亏损上限已关闭' : `当日亏损上限 ${usd(state.risk.dailyLossLimit)}（UTC）`}` : '等待首次评估');
+  set('connection', stale ? 'Waiting for data' : 'Engine connected'); $('connection-dot').style.background = stale ? '#dda671' : '#c2ee82';
+  set('updated', state.updatedAt ? `Last evaluated ${time(state.updatedAt)} · ${state.risk.dailyLossLimit === null ? 'daily loss limit off' : `daily loss limit ${usd(state.risk.dailyLossLimit)} (UTC)`}` : 'Waiting for first evaluation');
   const cadence = state.cadence;
   if (cadence) {
-    set('cadence-target', `目标 ${(cadence.targetMs / 1000).toFixed(1)}s`);
-    set('cadence-actual', newest && previous ? `返回间隔 ${((newest.at - previous.at) / 1000).toFixed(2)}s` : '返回间隔 —');
+    set('cadence-target', `Target ${(cadence.targetMs / 1000).toFixed(1)}s`);
+    set('cadence-actual', newest && previous ? `Interval ${((newest.at - previous.at) / 1000).toFixed(2)}s` : 'Interval —');
     const elapsed = cadence.cycleStartedAt === null ? 0 : Math.max(0, now - cadence.cycleStartedAt);
     const late = state.busy && elapsed > cadence.targetMs;
     let status;
-    if (!connected) status = '连接中断，等待恢复';
-    else if (state.paused) status = '已暂停判断与开仓';
-    else if (state.error) status = '请求失败，退避后重试';
-    else if (late) status = `本次请求已耗时 ${(elapsed / 1000).toFixed(1)}s · 等待返回，不堆积请求`;
-    else if (state.busy) status = ({ 'market-data': '读取实时行情…', inference: 'Jev 正在判断…', quotes: '复核最新盘口…' })[cadence.stage] ?? '正在评估…';
-    else status = `下次评估 ${Math.max(0, (cadence.nextTickAt - now) / 1000).toFixed(1)}s 后`;
+    if (!connected) status = 'Disconnected, waiting to recover';
+    else if (state.paused) status = 'Decisions and entries paused';
+    else if (state.error) status = 'Request failed, retrying with backoff';
+    else if (late) status = `Request running for ${(elapsed / 1000).toFixed(1)}s · waiting, not queuing more`;
+    else if (state.busy) status = ({ 'market-data': 'Reading live market data…', inference: 'Jev is deciding…', quotes: 'Re-checking latest quotes…' })[cadence.stage] ?? 'Evaluating…';
+    else status = `Next evaluation in ${Math.max(0, (cadence.nextTickAt - now) / 1000).toFixed(1)}s`;
     set('cycle-status', status); $('cycle-status').className = late || state.error ? 'delayed' : '';
     $('cadence-progress').style.width = `${state.paused || !connected ? 0 : Math.min(100, elapsed / cadence.targetMs * 100)}%`;
   }
@@ -187,13 +187,13 @@ $('pause').addEventListener('click', async () => {
   $('pause').disabled = true;
   try {
     const r = await fetch(`${API_BASE}/api/control`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paused: !state.paused }) });
-    if (!r.ok) throw new Error('无法更改开仓状态');
+    if (!r.ok) throw new Error('Could not change trading state');
   } catch (e) { set('notice', e.message); }
   finally { $('pause').disabled = false; }
 });
 const events = new EventSource(`${API_BASE}/events`);
 events.onopen = () => { connected = true; refreshClock(); };
-events.addEventListener('state', e => { try { render(JSON.parse(e.data)); } catch (error) { set('notice', `界面更新失败：${error.message}`); } });
+events.addEventListener('state', e => { try { render(JSON.parse(e.data)); } catch (error) { set('notice', `Dashboard update failed: ${error.message}`); } });
 events.onerror = () => { connected = false; refreshClock(); };
 setInterval(refreshClock, 100);
 import { directionOf, shouldPulse } from './decision-view.js';

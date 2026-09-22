@@ -24,7 +24,7 @@ export class PerpFeed {
   mids: { at: number; price: number }[] = [];
   /** Start of uninterrupted trade coverage; flow windows longer than this are unknown, not small. */
   tradesSince: number | null = null;
-  status = "等待连接 Binance 合约";
+  status = "Waiting for Binance perp";
   private sockets = new Map<string, { ws?: WebSocket; retries: number; timer?: ReturnType<typeof setTimeout>; last: number }>();
   private watchdog?: ReturnType<typeof setInterval>;
   private stopped = true;
@@ -87,7 +87,7 @@ export class PerpFeed {
   }
   private refreshStatus() {
     const open = [...this.sockets.values()].filter(s => s.ws?.readyState === WebSocket.OPEN).length;
-    this.status = open === this.sockets.size ? "Binance 合约已连接" : open ? "Binance 合约部分连接" : "Binance 合约已断开，等待重连";
+    this.status = open === this.sockets.size ? "Binance perp connected" : open ? "Binance perp partially connected" : "Binance perp disconnected, reconnecting";
   }
   private connect(url: string) {
     const s = this.sockets.get(url);

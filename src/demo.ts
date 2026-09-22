@@ -18,7 +18,7 @@ function syntheticPerp(now: number, startMs: number): PerpFeatures {
 export class DemoData implements MarketData {
   start() {}
   stop() {}
-  status() { return "离线演示 · 合成行情 · Mock 模型"; }
+  status() { return "Offline demo · synthetic data · mock model"; }
   async snapshot(now = Date.now()): Promise<Snapshot> {
     const startMs = Math.floor(now / 300000) * 300000;
     const slug = `btc-updown-5m-${startMs / 1000}`;

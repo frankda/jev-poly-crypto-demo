@@ -47,23 +47,23 @@ export function quoteSell(book: Book, shares: number, fee: Fee, slippage: number
 export function evaluateExit(s: Snapshot, d: Decision, trade: Trade, c: Config, now: number): Signal {
   const hold = (reason: string): Signal => ({ action: "wait", reason });
   const side = trade.side, label = side.toUpperCase(), score = d.scores[side];
-  if (now - d.at > c.maxDataAgeMs || d.at > now + 2000) return hold(`持有 ${label}：模型结果已过期，暂不卖出`);
-  if (!s.market.fee) return hold(`持有 ${label}：缺少可靠的手续费参数，暂不卖出`);
+  if (now - d.at > c.maxDataAgeMs || d.at > now + 2000) return hold(`Holding ${label}: model result is stale, not selling`);
+  if (!s.market.fee) return hold(`Holding ${label}: no reliable fee schedule, not selling`);
   const bid = s.books[side].bids[0];
-  if (!bid || bid.price <= score) return hold(`持有 ${label}：买一 ${bid ? (bid.price * 100).toFixed(1) : "—"}¢ 未高于 Jev ${(score * 100).toFixed(1)}¢，继续持有`);
+  if (!bid || bid.price <= score) return hold(`Holding ${label}: bid ${bid ? (bid.price * 100).toFixed(1) : "—"}¢ is not above Jev ${(score * 100).toFixed(1)}¢`);
   const q = quoteSell(s.books[side], trade.shares, s.market.fee, c.slippageBuffer);
-  if (!q) return hold(`持有 ${label}：买一高于 Jev，但买盘深度不足以整笔卖出`);
+  if (!q) return hold(`Holding ${label}: bid is above Jev but bid depth cannot fill the whole position`);
   return { action: "sell", exit: { ...q, tradeId: trade.id, side, score },
-    reason: `卖出 ${label}：买一 ${(bid.price * 100).toFixed(1)}¢ 高于 Jev ${(score * 100).toFixed(1)}¢，卖出均价 ${(q.averagePrice * 100).toFixed(1)}¢` };
+    reason: `Sell ${label}: bid ${(bid.price * 100).toFixed(1)}¢ is above Jev ${(score * 100).toFixed(1)}¢, average fill ${(q.averagePrice * 100).toFixed(1)}¢` };
 }
 
 export function observationGuard(s: Snapshot, c: Config, now: number): string | null {
-  if (now < s.market.startMs || now >= s.market.endMs) return "等待当前轮次行情";
-  if (!s.market.acceptingOrders) return "市场未开放交易";
-  if (!s.market.anchor) return "缺少本轮开盘基准价，等待下一轮精确边界数据";
-  if (!s.reference || s.reference.source !== s.market.source) return "等待与结算规则匹配的 Chainlink 数据";
+  if (now < s.market.startMs || now >= s.market.endMs) return "Waiting for current round data";
+  if (!s.market.acceptingOrders) return "Market is not accepting orders";
+  if (!s.market.anchor) return "No price to beat for this round; waiting for the next exact opening tick";
+  if (!s.reference || s.reference.source !== s.market.source) return "Waiting for the Chainlink stream that matches the settlement rules";
   const times = [s.at, s.reference.timestamp, ...Object.values(s.books).flatMap(b => [b.timestamp, b.receivedAt])];
-  if (times.some(t => !Number.isFinite(t) || now - t > c.maxDataAgeMs || t - now > 2000)) return "行情过期或时钟偏差，跳过本次决策";
+  if (times.some(t => !Number.isFinite(t) || now - t > c.maxDataAgeMs || t - now > 2000)) return "Stale data or clock skew; skipping this decision";
   return null;
 }
 
@@ -71,20 +71,20 @@ export function dataGuard(s: Snapshot, c: Config, now: number): string | null {
   const guard = observationGuard(s, c, now);
   if (guard) return guard;
   const left = (s.market.endMs - now) / 1000;
-  if (left > c.maxSecondsLeft) return "等待入场时间窗口";
-  if (left < c.minSecondsLeft) return "临近收盘，停止开仓";
-  if (!s.market.fee) return "缺少可靠的手续费参数";
+  if (left > c.maxSecondsLeft) return "Waiting for the entry window";
+  if (left < c.minSecondsLeft) return "Too close to the close; no new entries";
+  if (!s.market.fee) return "No reliable fee schedule";
   return null;
 }
 
 export function riskGuard(account: Account, c: Config): string | null {
   if (c.dailyLossLimit !== null) {
-    if (account.dailyPnl <= -c.dailyLossLimit) return "达到当日已实现亏损上限（UTC）";
+    if (account.dailyPnl <= -c.dailyLossLimit) return "Daily realized loss limit reached (UTC)";
     // Include all unsettled stakes in the day's worst-case loss budget.
     const riskBudget = c.dailyLossLimit + Math.min(0, account.dailyPnl) - account.exposure;
-    if (riskBudget + 1e-8 < c.tradeUsd) return "当日剩余亏损额度不足（包含未结算仓位）";
+    if (riskBudget + 1e-8 < c.tradeUsd) return "Not enough daily loss budget left (including open positions)";
   }
-  if (account.cash + 1e-8 < c.tradeUsd || account.exposure + c.tradeUsd > c.maxExposure + 1e-8) return "可用余额或总敞口额度不足";
+  if (account.cash + 1e-8 < c.tradeUsd || account.exposure + c.tradeUsd > c.maxExposure + 1e-8) return "Insufficient cash or exposure headroom";
   return null;
 }
 
@@ -92,8 +92,8 @@ export function evaluate(s: Snapshot, d: Decision, account: Account, holding: bo
   const wait = (reason: string): Signal => ({ action: "wait", reason });
   const guard = dataGuard(s, c, now) ?? riskGuard(account, c);
   if (guard) return wait(guard);
-  if (now - d.at > c.maxDataAgeMs || d.at > now + 2000) return wait("模型结果已过期");
-  if (holding) return wait("本轮已有持仓，同一时间最多一笔");
+  if (now - d.at > c.maxDataAgeMs || d.at > now + 2000) return wait("Model result is stale");
+  if (holding) return wait("Position already open; at most one at a time");
   const candidates: Quote[] = [];
   for (const side of ["up", "down"] as const) {
     if (!Number.isFinite(d.scores[side]) || d.scores[side] < c.minScore || d.scores[side] > 1) continue;
@@ -107,6 +107,6 @@ export function evaluate(s: Snapshot, d: Decision, account: Account, holding: bo
   }
   candidates.sort((a, b) => b.edge - a.edge);
   const quote = candidates[0];
-  if (!quote) return wait("评分优势不足，或价差 / 深度未达入场条件");
-  return { action: quote.side, quote, reason: `买入 ${quote.side.toUpperCase()}：含费成本 ${(quote.total / quote.shares * 100).toFixed(1)}¢，低于 Jev ${(d.scores[quote.side] * 100).toFixed(1)}¢ 达 ${(quote.edge * 100).toFixed(1)}¢` };
+  if (!quote) return wait("Edge too small, or spread / depth does not meet entry rules");
+  return { action: quote.side, quote, reason: `Buy ${quote.side.toUpperCase()}: cost incl. fees ${(quote.total / quote.shares * 100).toFixed(1)}¢ is ${(quote.edge * 100).toFixed(1)}¢ below Jev ${(d.scores[quote.side] * 100).toFixed(1)}¢` };
 }

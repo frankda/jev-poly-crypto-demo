@@ -22,7 +22,7 @@ test("model keeps evaluating after a fill while an open position prevents duplic
   const s = store(), engine = new Engine(config, data(() => { reads++; return snapshot(); }), { decide: async () => { calls++; return decision; } }, s, () => now);
   await engine.tick(); await engine.tick();
   expect(reads).toBe(4); expect(calls).toBe(2); expect(s.openTrades()).toHaveLength(1);
-  expect(engine.signal.reason).toContain("持有 UP");
+  expect(engine.signal.reason).toContain("Holding UP");
   expect(engine.view().decisionPoints).toHaveLength(2);
   expect(engine.view().decisionPoints[0]!.id).not.toBe(engine.view().decisionPoints[1]!.id);
   expect(s.account(now).cash).toBeCloseTo(990); expect(s.recentEvents().some(e => e.kind === "paper-fill")).toBe(true);
@@ -54,14 +54,14 @@ test("model observes outside the entry window while execution still waits", asyn
   const s = store(), engine = new Engine(config, data(() => early), { decide: async () => { calls++; return decision; } }, s, () => now);
   await engine.tick();
   expect(calls).toBe(1); expect(engine.decision).not.toBeNull(); expect(s.openTrades()).toHaveLength(0);
-  expect(engine.signal.reason).toBe("等待入场时间窗口");
+  expect(engine.signal.reason).toBe("Waiting for the entry window");
 });
 
 test("loss budget blocks new orders without hiding fresh model opinions", async () => {
   const s = store(), engine = new Engine({ ...config, dailyLossLimit: 5 }, data(), goodModel, s, () => now);
   await engine.tick();
   expect(engine.decision).not.toBeNull(); expect(engine.view().decisionPoints).toHaveLength(1);
-  expect(s.openTrades()).toHaveLength(0); expect(engine.signal.reason).toContain("亏损额度不足");
+  expect(s.openTrades()).toHaveLength(0); expect(engine.signal.reason).toContain("daily loss budget");
 });
 
 test("missing opening reference still prevents inference and chart decision markers", async () => {
@@ -93,7 +93,7 @@ test("window rollover or changed opening benchmark discards a prediction", async
 });
 test("timeout rejects a model even when the provider ignores cancellation", async () => {
   const s = store(), engine = new Engine({ ...config, modelTimeoutMs: 20 }, data(), { decide: () => new Promise(() => {}) }, s, () => now);
-  await engine.tick(); expect(s.openTrades()).toHaveLength(0); expect(engine.error).toContain("超时");
+  await engine.tick(); expect(s.openTrades()).toHaveLength(0); expect(engine.error).toContain("timed out");
 });
 test("concurrent ticks are coalesced; pausing an in-flight model prevents entry", async () => {
   let started!: () => void;
@@ -134,7 +134,7 @@ test("holds after entry, sells once the bid exceeds Jev's probability, then may 
   await engine.tick(); expect(s.openTrades()).toHaveLength(1);
   const cost = s.openTrades()[0]!.total, shares = s.openTrades()[0]!.shares;
   bid = .75; await engine.tick();
-  expect(engine.signal.action).toBe("wait"); expect(engine.signal.reason).toContain("未高于 Jev");
+  expect(engine.signal.action).toBe("wait"); expect(engine.signal.reason).toContain("is not above Jev");
   bid = .8; await engine.tick();
   expect(engine.signal.action).toBe("sell"); expect(s.openTrades()).toHaveLength(0);
   const t = s.trades(1)[0]!;
@@ -143,7 +143,7 @@ test("holds after entry, sells once the bid exceeds Jev's probability, then may 
   expect(s.recentEvents().some(e => e.kind === "paper-exit")).toBe(true);
   bid = .48; await engine.tick();
   expect(engine.signal.action).toBe("up"); expect(s.openTrades()).toHaveLength(1); expect(s.trades()).toHaveLength(2); expect(calls).toBe(4);
-  await engine.tick(); expect(s.trades()).toHaveLength(2); expect(engine.signal.reason).toContain("持有 UP");
+  await engine.tick(); expect(s.trades()).toHaveLength(2); expect(engine.signal.reason).toContain("Holding UP");
 });
 
 test("old one-trade-per-round ledgers migrate in place without losing positions", () => {

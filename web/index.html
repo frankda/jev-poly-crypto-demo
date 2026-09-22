@@ -1,62 +1,62 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Jev / Poly — BTC 5m 决策实验室</title>
+  <title>Jev / Poly — BTC 5m Decision Lab</title>
   <link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script>
 </head>
 <body>
   <div class="shell">
     <header>
-      <a class="brand" href="/" aria-label="Jev Poly 首页"><span class="logo">j.</span><span>jev<span class="slash"> / </span>poly<span class="lab">DECISION LAB</span></span></a>
-      <div class="header-status"><span class="badge" id="data-mode">CONNECTING</span><span class="badge paper">PAPER ONLY</span><span class="connection"><i id="connection-dot"></i><span id="connection">连接中</span></span></div>
+      <a class="brand" href="/" aria-label="Jev Poly home"><span class="logo">j.</span><span>jev<span class="slash"> / </span>poly<span class="lab">DECISION LAB</span></span></a>
+      <div class="header-status"><span class="badge" id="data-mode">CONNECTING</span><span class="badge paper">PAPER ONLY</span><span class="connection"><i id="connection-dot"></i><span id="connection">Connecting</span></span></div>
     </header>
     <main>
-      <div class="intro"><div><p class="eyebrow">POLYMARKET · 5 MINUTE MARKETS</p><h1>让每一次判断，都有据可查。</h1><p class="muted">BTC 涨跌决策实验室 <span class="separator">/</span> 行情 → Jev 评分 → 入场规则 → 模拟结算</p></div><button id="pause" class="button" disabled>暂停开仓 <span>Ⅱ</span></button></div>
-      <div id="notice" class="notice">正在连接本地决策引擎…</div>
-      <section class="stats" aria-label="模拟账户">
-        <article class="stat"><span>可用模拟资金 <small>AVAILABLE</small></span><strong id="cash">—</strong><p id="bankroll">初始资金 —</p></article>
-        <article class="stat"><span>已实现收益 <small>REALIZED P&amp;L</small></span><strong id="pnl">—</strong><p id="realized-note">仅统计已正式结算的模拟仓位</p></article>
-        <article class="stat"><span>未结算敞口 <small>AT RISK</small></span><strong id="exposure">—</strong><p id="positions">— 笔等待结算</p></article>
-        <article class="stat"><span>结算胜率 <small>WIN RATE</small></span><strong id="winrate">—</strong><p id="settled">尚无已结算交易</p></article>
+      <div class="intro"><div><p class="eyebrow">POLYMARKET · 5 MINUTE MARKETS</p><h1>Every call, on the record.</h1><p class="muted">BTC up/down decision lab <span class="separator">/</span> Market data → Jev score → Entry rules → Paper settlement</p></div><button id="pause" class="button" disabled>Pause <span>Ⅱ</span></button></div>
+      <div id="notice" class="notice">Connecting to the decision engine…</div>
+      <section class="stats" aria-label="Paper account">
+        <article class="stat"><span>Available cash <small>PAPER</small></span><strong id="cash">—</strong><p id="bankroll">Starting bankroll —</p></article>
+        <article class="stat"><span>Realized P&amp;L <small>SETTLED</small></span><strong id="pnl">—</strong><p id="realized-note">Settled paper positions only</p></article>
+        <article class="stat"><span>Open exposure <small>AT RISK</small></span><strong id="exposure">—</strong><p id="positions">— awaiting settlement</p></article>
+        <article class="stat"><span>Win rate <small>SETTLED</small></span><strong id="winrate">—</strong><p id="settled">No settled trades yet</p></article>
       </section>
       <div class="workspace">
         <section class="panel market-panel">
-          <div class="panel-head"><div class="market-title"><span class="coin">₿</span><div><h2>Bitcoin <span class="tag">5m</span></h2><p id="window">等待当前轮次</p></div></div><div class="countdown"><span>距离收盘</span><strong id="countdown">—:—</strong></div></div>
-          <div class="chart-live-row"><span id="chart-direction" class="chart-direction">等待 Jev 判断</span><span id="chart-evaluation">每个点对应一次模型判断</span></div>
-          <div class="price-row"><div><span class="label" id="reference-label">结算参考价格</span><strong id="reference">—</strong><span id="price-change" class="price-change">—</span></div><div class="anchor"><span class="label">本轮基准价 · PRICE TO BEAT</span><strong id="anchor">—</strong></div></div>
-          <div class="chart-wrap"><svg id="chart" viewBox="0 0 850 220" role="img" aria-label="本轮参考价格与 Jev 判断点"><g id="chart-grid"></g><path id="chart-area"></path><line id="anchor-line" x1="0" x2="850"></line><path id="chart-path"></path><g id="decision-dots"></g><circle id="chart-dot" r="4"></circle><g id="decision-pulse" aria-hidden="true"></g><text id="chart-empty" x="425" y="110" text-anchor="middle">等待价格序列</text></svg></div>
-          <div id="decision-tape" class="decision-tape" aria-label="本轮模型方向时间线"></div>
-          <div class="chart-footer"><span id="chart-start">—</span><span id="anchor-source">基准价来源待确认</span><span id="chart-end">—</span></div>
+          <div class="panel-head"><div class="market-title"><span class="coin">₿</span><div><h2>Bitcoin <span class="tag">5m</span></h2><p id="window">Waiting for current round</p></div></div><div class="countdown"><span>Closes in</span><strong id="countdown">—:—</strong></div></div>
+          <div class="chart-live-row"><span id="chart-direction" class="chart-direction">Waiting for Jev</span><span id="chart-evaluation">Each dot is one model decision</span></div>
+          <div class="price-row"><div><span class="label" id="reference-label">Settlement reference price</span><strong id="reference">—</strong><span id="price-change" class="price-change">—</span></div><div class="anchor"><span class="label">PRICE TO BEAT</span><strong id="anchor">—</strong></div></div>
+          <div class="chart-wrap"><svg id="chart" viewBox="0 0 850 220" role="img" aria-label="Reference price and Jev decisions this round"><g id="chart-grid"></g><path id="chart-area"></path><line id="anchor-line" x1="0" x2="850"></line><path id="chart-path"></path><g id="decision-dots"></g><circle id="chart-dot" r="4"></circle><g id="decision-pulse" aria-hidden="true"></g><text id="chart-empty" x="425" y="110" text-anchor="middle">Waiting for price data</text></svg></div>
+          <div id="decision-tape" class="decision-tape" aria-label="Model direction timeline this round"></div>
+          <div class="chart-footer"><span id="chart-start">—</span><span id="anchor-source">Price-to-beat source pending</span><span id="chart-end">—</span></div>
           <div class="outcomes">
-            <div class="outcome"><div><span class="direction up">↗ UP</span><span class="label">买入卖一 / 最佳买价</span></div><div><strong id="up-ask">—</strong><span id="up-bid">—</span></div></div>
-            <div class="outcome"><div><span class="direction down">↘ DOWN</span><span class="label">买入卖一 / 最佳买价</span></div><div><strong id="down-ask">—</strong><span id="down-bid">—</span></div></div>
+            <div class="outcome"><div><span class="direction up">↗ UP</span><span class="label">Best ask / best bid</span></div><div><strong id="up-ask">—</strong><span id="up-bid">—</span></div></div>
+            <div class="outcome"><div><span class="direction down">↘ DOWN</span><span class="label">Best ask / best bid</span></div><div><strong id="down-ask">—</strong><span id="down-bid">—</span></div></div>
           </div>
-          <div class="perp" aria-label="Binance 合约辅助特征"><div class="perp-head"><span class="label">BINANCE BTCUSDT 永续 · 辅助特征（不参与结算）</span><span id="perp-age" class="label">—</span></div><dl><div><dt>中间价 / 基差</dt><dd id="perp-mid">—</dd></div><div><dt>盘口失衡 前5档</dt><dd id="perp-book">—</dd></div><div><dt>主动买卖 30s</dt><dd id="perp-flow">—</dd></div><div><dt>涨跌 30s / 本轮</dt><dd id="perp-ret">—</dd></div></dl></div>
-          <div class="source-line"><span id="feed">等待数据源</span><a id="market-link" target="_blank" rel="noopener noreferrer" hidden>查看市场 ↗</a></div>
+          <div class="perp" aria-label="Binance perpetual auxiliary features"><div class="perp-head"><span class="label">BINANCE BTCUSDT PERP · AUXILIARY, NOT SETTLEMENT</span><span id="perp-age" class="label">—</span></div><dl><div><dt>Mid / basis</dt><dd id="perp-mid">—</dd></div><div><dt>Book imbalance, top 5</dt><dd id="perp-book">—</dd></div><div><dt>Taker buy / sell 30s</dt><dd id="perp-flow">—</dd></div><div><dt>Change 30s / round</dt><dd id="perp-ret">—</dd></div></dl></div>
+          <div class="source-line"><span id="feed">Waiting for data feeds</span><a id="market-link" target="_blank" rel="noopener noreferrer" hidden>View market ↗</a></div>
         </section>
         <section class="panel decision-panel">
           <div class="panel-head"><div><p class="eyebrow">THE DECISION ENGINE</p><h2 id="model-name">Jev / Mock</h2></div><span class="engine-mark">✳</span></div>
           <div class="signal" id="signal-box" data-direction="neutral">
-            <div class="signal-top"><span class="label">JEV DECISION · 模型方向</span><span id="decision-sequence">等待判断</span></div>
+            <div class="signal-top"><span class="label">JEV DECISION · DIRECTION</span><span id="decision-sequence">Waiting</span></div>
             <div class="direction-headline"><strong id="model-direction">—</strong><span id="direction-score">—</span></div>
-            <div class="decision-change"><span id="direction-change">每次新判断实时更新</span><time id="decision-time">—</time></div>
-            <div class="raw-scores"><div id="raw-up-card"><span>↗ UP 原始评分</span><strong id="raw-up-score">—</strong><div class="raw-meter"><i id="raw-up-meter"></i></div></div><div id="raw-down-card"><span>↘ DOWN 原始评分</span><strong id="raw-down-score">—</strong><div class="raw-meter"><i id="raw-down-meter"></i></div></div></div>
+            <div class="decision-change"><span id="direction-change">Updates with every new decision</span><time id="decision-time">—</time></div>
+            <div class="raw-scores"><div id="raw-up-card"><span>↗ UP raw score</span><strong id="raw-up-score">—</strong><div class="raw-meter"><i id="raw-up-meter"></i></div></div><div id="raw-down-card"><span>↘ DOWN raw score</span><strong id="raw-down-score">—</strong><div class="raw-meter"><i id="raw-down-meter"></i></div></div></div>
           </div>
-          <div class="execution-box"><div><span class="label">模拟交易动作</span><strong id="action">WAIT / 观望</strong></div><p id="reason">等待足够的数据后评估入场条件。</p></div>
-          <div class="score-label"><span>入场用评分 · 向 50% 收缩</span><span id="score-caption">等待评估</span></div>
+          <div class="execution-box"><div><span class="label">Paper trading action</span><strong id="action">WAIT</strong></div><p id="reason">Entry rules are evaluated once enough data is available.</p></div>
+          <div class="score-label"><span>Entry score · shrunk toward 50%</span><span id="score-caption">Waiting</span></div>
           <div class="score-bar" id="score-bar"><div id="score-up"></div></div>
           <div class="score-values"><span class="up">UP <strong id="up-score">—</strong></span><span class="down">DOWN <strong id="down-score">—</strong></span></div>
-          <div class="cadence-panel"><div><span class="label">判断频率</span><strong id="cadence-target">目标 2.0s</strong><span id="cadence-actual">返回间隔 —</span></div><div class="cadence-meter"><i id="cadence-progress"></i></div><p id="cycle-status">等待引擎</p></div>
-          <dl class="decision-meta"><div><dt>最近模型延迟</dt><dd id="latency">—</dd></div><div><dt>本次循环耗时</dt><dd id="cycle-duration">—</dd></div><div><dt>入场优势门槛</dt><dd id="min-edge">—</dd></div><div><dt>单笔模拟金额</dt><dd id="trade-size">—</dd></div></dl>
-          <p class="footnote">模型评分尚未经过胜率校准。入场规则另外检查手续费、盘口深度、时间窗口与风险额度。</p>
+          <div class="cadence-panel"><div><span class="label">Decision cadence</span><strong id="cadence-target">Target 2.0s</strong><span id="cadence-actual">Interval —</span></div><div class="cadence-meter"><i id="cadence-progress"></i></div><p id="cycle-status">Waiting for engine</p></div>
+          <dl class="decision-meta"><div><dt>Last model latency</dt><dd id="latency">—</dd></div><div><dt>Cycle duration</dt><dd id="cycle-duration">—</dd></div><div><dt>Minimum entry edge</dt><dd id="min-edge">—</dd></div><div><dt>Paper trade size</dt><dd id="trade-size">—</dd></div></dl>
+          <p class="footnote">Model scores are not calibrated against realized win rates. Entry rules separately check fees, book depth, timing and risk limits.</p>
         </section>
       </div>
       <div class="bottom-grid">
-        <section class="panel ledger"><div class="panel-head"><h2>模拟交易记录</h2><span class="label" id="settlement-label">持有至官方结算</span></div><div class="table-wrap"><table><thead><tr><th>入场时间</th><th>方向</th><th>均价</th><th>份额</th><th>含费成本</th><th>结果 / 收益</th></tr></thead><tbody id="trades"></tbody></table><div id="trades-empty" class="empty"><span>⌁</span><p>等待第一笔符合条件的交易</p><small>同一时间最多持有一笔；买一高于 Jev 时卖出，卖出后可再入场。</small></div></div></section>
-        <section class="panel activity"><div class="panel-head"><h2>决策日志</h2><span class="label">RECENT ACTIVITY</span></div><ol id="events"></ol><p id="events-empty" class="empty-text">引擎启动后，决策与结算会显示在这里。</p></section>
+        <section class="panel ledger"><div class="panel-head"><h2>Paper trades</h2><span class="label" id="settlement-label">Held to official settlement</span></div><div class="table-wrap"><table><thead><tr><th>Opened</th><th>Side</th><th>Avg price</th><th>Shares</th><th>Cost incl. fees</th><th>Result / P&amp;L</th></tr></thead><tbody id="trades"></tbody></table><div id="trades-empty" class="empty"><span>⌁</span><p>Waiting for the first qualifying trade</p><small>At most one open position. Sells when the bid exceeds Jev; may re-enter after selling.</small></div></div></section>
+        <section class="panel activity"><div class="panel-head"><h2>Decision log</h2><span class="label">RECENT ACTIVITY</span></div><ol id="events"></ol><p id="events-empty" class="empty-text">Decisions and settlements appear here once the engine is running.</p></section>
       </div>
-      <footer><span><i class="mini-dot"></i> 仅模拟交易 · 不连接钱包</span><span id="updated">等待更新</span><a href="https://github.com/jarrodwatts/jev-trader" target="_blank" rel="noopener noreferrer">Inspired by jev-trader ↗</a></footer>
+      <footer><span><i class="mini-dot"></i> Paper trading only · no wallet connected</span><span id="updated">Waiting for update</span><a href="https://github.com/jarrodwatts/jev-trader" target="_blank" rel="noopener noreferrer">Inspired by jev-trader ↗</a></footer>
     </main>
   </div>
 </body>

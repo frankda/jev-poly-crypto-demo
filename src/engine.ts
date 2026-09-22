@@ -23,7 +23,7 @@ export class Engine {
   latest: Snapshot | null = null;
   decision: Decision | null = null;
   lastEvaluation: { slug: string; decision: Decision } | null = null;
-  signal: Signal = { action: "wait", reason: "等待行情" };
+  signal: Signal = { action: "wait", reason: "Waiting for market data" };
   error: string | null = null;
   settlementError: string | null = null;
   updatedAt: number | null = null;
@@ -39,7 +39,7 @@ export class Engine {
   private emit() { for (const callback of this.listeners) callback(); }
   setPaused(paused: boolean) {
     this.paused = paused;
-    if (paused) { this.controller?.abort(); this.signal = { action: "wait", reason: "已暂停开仓，已有仓位继续等待结算" }; }
+    if (paused) { this.controller?.abort(); this.signal = { action: "wait", reason: "Entries paused; open positions still await settlement" }; }
     this.store.record(this.now(), "control", { paused }); this.emit();
   }
   view() {
@@ -102,13 +102,13 @@ export class Engine {
       let point: DecisionPoint | null = null;
       const guard = observationGuard(snapshot, this.config, this.now());
       if (this.paused || guard) {
-        this.signal = { action: "wait", reason: this.paused ? "已暂停模型评估与开仓，已有仓位继续等待结算" : guard! };
+        this.signal = { action: "wait", reason: this.paused ? "Model evaluation and entries paused; open positions still await settlement" : guard! };
       } else {
         this.stage = "inference"; this.emit();
         const controller = this.controller = new AbortController();
         let timeout: ReturnType<typeof setTimeout> | undefined;
         const abort = new Promise<never>((_, reject) => {
-          controller.signal.addEventListener("abort", () => reject(new Error("模型请求已取消或超时，本轮不交易")), { once: true });
+          controller.signal.addEventListener("abort", () => reject(new Error("Model request cancelled or timed out; no trade this cycle")), { once: true });
           timeout = setTimeout(() => controller.abort(), this.config.modelTimeoutMs);
         });
         let decision: Decision;
@@ -120,23 +120,23 @@ export class Engine {
         const refreshed = await this.data.snapshot(this.now());
         this.latest = refreshed;
         if (this.now() - snapshot.at > this.config.maxDataAgeMs) {
-          this.signal = { action: "wait", reason: "推理所用行情已经过期，丢弃结果" };
+          this.signal = { action: "wait", reason: "Market data used for inference is stale; result discarded" };
         } else if (refreshed.market.source !== snapshot.market.source || refreshed.market.anchor?.price !== snapshot.market.anchor?.price) {
-          this.signal = { action: "wait", reason: "结算参考或开盘基准发生变化，丢弃旧结果" };
+          this.signal = { action: "wait", reason: "Settlement source or price to beat changed; result discarded" };
         } else if (this.paused || refreshed.market.conditionId !== snapshot.market.conditionId) {
-          this.signal = { action: "wait", reason: this.paused ? "已暂停开仓" : "模型返回时已切换轮次，丢弃旧结果" };
+          this.signal = { action: "wait", reason: this.paused ? "Entries paused" : "Round changed before the model returned; result discarded" };
         } else {
           this.decision = decision;
           this.lastEvaluation = { slug: refreshed.market.slug, decision };
           const holding = this.store.openTrade(refreshed.market.conditionId);
           if (holding) {
             this.signal = evaluateExit(refreshed, decision, holding, this.config, this.now());
-            if (this.signal.exit && !this.store.sell(this.signal.exit, decision, this.now())) this.signal = { action: "wait", reason: "账本拒绝卖出：仓位已结算或不匹配" };
+            if (this.signal.exit && !this.store.sell(this.signal.exit, decision, this.now())) this.signal = { action: "wait", reason: "Ledger rejected the sell: position already settled or mismatched" };
           } else {
             this.signal = evaluate(refreshed, decision, this.store.account(this.now()), this.store.hasOpenTrade(refreshed.market.conditionId), this.config, this.now());
             if (this.signal.quote) {
               const opened = this.store.open(refreshed, this.signal.quote, decision, this.now());
-              if (!opened) this.signal = { action: "wait", reason: "账本拒绝开仓：已有持仓或余额不足" };
+              if (!opened) this.signal = { action: "wait", reason: "Ledger rejected the entry: position already open or insufficient cash" };
             }
           }
           point = { id: evaluationId, slug: snapshot.market.slug, at: decision.at, referenceAt: snapshot.reference!.timestamp,
@@ -149,7 +149,7 @@ export class Engine {
       this.failures = 0;
     } catch (e) {
       this.error = this.message(e); this.decision = null;
-      this.signal = { action: "wait", reason: "数据或模型请求失败，等待恢复" };
+      this.signal = { action: "wait", reason: "Data or model request failed; waiting to recover" };
       this.failures++;
       this.store.record(this.now(), "error", { message: this.error });
     } finally {

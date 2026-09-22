@@ -56,10 +56,10 @@ describe("execution and risk gates", () => {
   });
   test("DAILY_LOSS_LIMIT_USD=off disables only the daily loss stop", () => {
     const lost = { ...account, dailyPnl: -30, realizedPnl: -30, cash: 970 };
-    expect(riskGuard(lost, config)).toContain("亏损上限");
+    expect(riskGuard(lost, config)).toContain("loss limit");
     const off = readConfig({ DATA_MODE: "demo", DAILY_LOSS_LIMIT_USD: "off" });
     expect(off.dailyLossLimit).toBeNull(); expect(riskGuard(lost, off)).toBeNull();
-    expect(riskGuard({ ...lost, exposure: 50 }, off)).toContain("敞口");
+    expect(riskGuard({ ...lost, exposure: 50 }, off)).toContain("exposure");
   });
   test("buys any side priced at least MIN_EDGE below Jev, with no minimum-score requirement", () => {
     const s = snapshot(); s.books.down.asks = [{ price: .3, size: 100 }]; s.books.down.bids = [{ price: .29, size: 100 }];
