@@ -6,6 +6,7 @@ import { Engine } from "./engine";
 import { JevModel, MockModel } from "./model";
 import { PolymarketData } from "./polymarket";
 import { publicView } from "./public-view";
+import { diffView } from "./state-patch";
 import { MemoryStore } from "./memory-store";
 import { Store } from "./store";
 import type { Ledger } from "./types";
@@ -36,22 +37,33 @@ function sqliteLedger(): Ledger {
 const store = config.ledger === "memory" ? new MemoryStore(config.bankroll) : sqliteLedger();
 const engine = new Engine(config, config.dataMode === "demo" ? new DemoData() : new PolymarketData({ perp: config.perpFeatures, maxDataAgeMs: config.maxDataAgeMs }), config.model === "jev" ? new JevModel(config) : new MockModel(config), store);
 const webRoot = resolve(import.meta.dir, "../web");
-const assets: Record<string, string> = { "/": "index.html", "/app.js": "app.js", "/config.js": "config.js", "/decision-view.js": "decision-view.js", "/style.css": "style.css" };
+const assets: Record<string, string> = { "/": "index.html", "/app.js": "app.js", "/config.js": "config.js", "/decision-view.js": "decision-view.js", "/state-patch.js": "state-patch.js", "/style.css": "style.css" };
 const securityHeaders = { "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store", "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'" };
 
 // A separately hosted dashboard (e.g. Vercel) may read the public GET endpoints; only that exact origin is allowed.
 const cors = (request: Request): Record<string, string> =>
   config.corsOrigin && request.headers.get("origin") === config.corsOrigin ? { "Access-Control-Allow-Origin": config.corsOrigin, "Vary": "Origin" } : { "Vary": "Origin" };
-// Serialize the state once per change and share it across all SSE clients.
-// Reuse for at most 1 s so serverTime (used for the countdown) stays accurate.
-let stateCache: { version: number; at: number; body: string } | null = null, stateVersion = 0;
-engine.subscribe(() => { stateVersion++; });
-const stateJson = () => {
-  const now = Date.now();
-  if (!stateCache || stateCache.version !== stateVersion || now - stateCache.at > 1000) stateCache = { version: stateVersion, at: now, body: JSON.stringify(publicView(engine.view())) };
-  return stateCache.body;
-};
-let sseClients = 0;
+// One broadcaster for all viewers: each change is diffed once against the previous broadcast and the same bytes go
+// to every client. A new client first gets the last broadcast full state, which is exactly what the next patch applies to.
+type Client = { controller: ReadableStreamDefaultController<Uint8Array>; close: () => void };
+const clients = new Set<Client>();
+const encoder = new TextEncoder();
+const MAX_BACKLOG = 50; // queued messages before a slow viewer is dropped (it reconnects and resyncs)
+let lastView: ReturnType<typeof publicView> | null = null, lastFull = "";
+function broadcast() {
+  const next = publicView(engine.view());
+  const patch = diffView(lastView, next);
+  lastView = next; lastFull = JSON.stringify(next);
+  if (!clients.size || (patch && !Object.keys(patch).length)) return;
+  const bytes = encoder.encode(patch ? `event: patch\ndata: ${JSON.stringify(patch)}\n\n` : `event: state\ndata: ${lastFull}\n\n`);
+  for (const client of clients) {
+    if ((client.controller.desiredSize ?? 0) < -MAX_BACKLOG) { client.close(); continue; }
+    try { client.controller.enqueue(bytes); } catch { client.close(); }
+  }
+}
+engine.subscribe(broadcast);
+setInterval(broadcast, 10000); // keeps serverTime fresh and connections alive between cycles
+const currentFull = () => { if (!lastView) broadcast(); return lastFull; };
 
 const server = Bun.serve({
   hostname: config.host, port: config.port, idleTimeout: 30,
@@ -74,29 +86,29 @@ const server = Bun.serve({
       } catch { return new Response("Invalid request", { status: 400 }); }
     }
     if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
-    if (url.pathname === "/api/state") return new Response(stateJson(), { headers: { ...securityHeaders, ...cors(request), "Content-Type": "application/json" } });
+    if (url.pathname === "/api/state") return new Response(currentFull(), { headers: { ...securityHeaders, ...cors(request), "Content-Type": "application/json" } });
     if (url.pathname === "/api/history") return Response.json(store.recentEvents(200), { headers: { ...securityHeaders, ...cors(request) } });
     if (url.pathname === "/health") {
       const ready = engine.updatedAt !== null && Date.now() - engine.updatedAt < 90000 && engine.error === null;
       return Response.json({ ready, mode: "paper", dataMode: config.dataMode, model: config.model, error: engine.error }, { status: ready ? 200 : 503, headers: { ...securityHeaders, ...cors(request) } });
     }
     if (url.pathname === "/events") {
-      if (sseClients >= config.maxSseClients) return new Response("Too many viewers, retry later", { status: 503, headers: { ...securityHeaders, ...cors(request), "Retry-After": "30" } });
-      sseClients++;
-      let cleanup = () => {}, closed = false;
+      if (clients.size >= config.maxSseClients) return new Response("Too many viewers, retry later", { status: 503, headers: { ...securityHeaders, ...cors(request), "Retry-After": "30" } });
+      let client: Client | undefined;
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
-          const encoder = new TextEncoder();
-          const send = () => { try { controller.enqueue(encoder.encode(`event: state\ndata: ${stateJson()}\n\n`)); } catch { cleanup(); } };
-          const unsubscribe = engine.subscribe(send);
-          const heartbeat = setInterval(send, 10000);
-          cleanup = () => {
-            if (closed) return; closed = true; sseClients--;
-            clearInterval(heartbeat); unsubscribe(); request.signal.removeEventListener("abort", cleanup);
-          };
-          request.signal.addEventListener("abort", cleanup, { once: true }); send();
+          let closed = false;
+          const c: Client = { controller, close: () => {
+            if (closed) return; closed = true; clients.delete(c);
+            request.signal.removeEventListener("abort", c.close);
+            try { controller.close(); } catch {}
+          } };
+          client = c;
+          request.signal.addEventListener("abort", c.close, { once: true });
+          controller.enqueue(encoder.encode(`event: state\ndata: ${currentFull()}\n\n`));
+          clients.add(c);
         },
-        cancel() { cleanup(); },
+        cancel() { client?.close(); },
       });
       return new Response(stream, { headers: { ...securityHeaders, ...cors(request), "Content-Type": "text/event-stream", "Connection": "keep-alive" } });
     }

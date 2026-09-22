@@ -197,7 +197,13 @@ let retries = 0;
 function connect() {
   const events = new EventSource(`${API_BASE}/events`);
   events.onopen = () => { connected = true; retries = 0; refreshClock(); };
-  events.addEventListener('state', e => { try { render(JSON.parse(e.data)); } catch (error) { set('notice', `Dashboard update failed: ${error.message}`); } });
+  // Full state on connect, then small patches against it.
+  let base = null;
+  events.addEventListener('state', e => { try { base = JSON.parse(e.data); render(base); } catch (error) { set('notice', `Dashboard update failed: ${error.message}`); } });
+  events.addEventListener('patch', e => {
+    if (!base) return;
+    try { base = applyPatch(base, JSON.parse(e.data)); render(base); } catch (error) { set('notice', `Dashboard update failed: ${error.message}`); events.close(); connect(); }
+  });
   events.onerror = () => {
     connected = false; refreshClock();
     if (events.readyState !== EventSource.CLOSED) return;
@@ -210,4 +216,5 @@ function connect() {
 connect();
 setInterval(refreshClock, 100);
 import { directionOf, shouldPulse } from './decision-view.js';
+import { applyPatch } from './state-patch.js';
 import { API_BASE } from './config.js';

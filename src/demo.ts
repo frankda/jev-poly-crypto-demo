@@ -23,7 +23,8 @@ export class DemoData implements MarketData {
     const startMs = Math.floor(now / 300000) * 300000;
     const slug = `btc-updown-5m-${startMs / 1000}`;
     const history: Tick[] = [];
-    for (let t = now - 300000; t <= now; t += 1000) history.push({ timestamp: t, price: price(t), source: "chainlink-twap-60s" });
+    // Whole-second ticks like the real RTDS stream, so earlier points never change between snapshots.
+    for (let t = Math.floor(now / 1000) * 1000 - 300000; t <= now; t += 1000) history.push({ timestamp: t, price: price(t), source: "chainlink-twap-60s" });
     // Deliberately independent synthetic quotes so the demonstration can exercise entries.
     const upAsk = Math.round((0.48 + 0.06 * Math.sin(now / 30000)) * 100) / 100;
     const book = (side: "up" | "down", ask: number): Book => ({

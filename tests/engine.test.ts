@@ -176,6 +176,7 @@ test("LEDGER_EVENTS=trades keeps trade state on disk but per-decision audit even
     expect(new Set(ids).size).toBe(ids.length); expect([...ids].sort((a, b) => b - a)).toEqual(ids);
     expect(engine.view().decisionPoints).toHaveLength(2);
     s.close();
+    await Bun.sleep(5); // a real restart is never within the same millisecond as the last write
     const reopened = new Store(path, 1000, false);
     expect(reopened.trades()).toHaveLength(1); expect(reopened.trades()[0]!.exit).toBeTruthy();
     const onDisk = reopened.db.query<{ kind: string }, []>("SELECT kind FROM events").all().map(r => r.kind);

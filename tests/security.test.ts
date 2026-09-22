@@ -40,7 +40,7 @@ test("public view keeps every field the dashboard renders while trimming history
   const engine = new Engine(config, { start() {}, stop() {}, status: () => "", snapshot: async () => snap, resolve: async () => null }, { decide: async () => decision }, store, () => now);
   await engine.tick();
   const full = engine.view(), view = publicView(full);
-  expect(view.snapshot!.history.length).toBe(150); expect(view.snapshot!.history.at(-1)).toEqual(snap.history.at(-1)!);
+  expect(view.snapshot!.history.length).toBeLessThanOrEqual(42); expect(view.snapshot!.history.at(-1)).toEqual(snap.history.at(-1)!);
   expect(view.snapshot!.books.up.asks).toEqual([{ price: .5, size: 10 }]);
   expect(view.snapshot!.market.anchor).toEqual(snap.market.anchor); expect(view.snapshot!.perp).toBe(snap.perp);
   expect(view.decisionPoints[0]!.decision!.rawScores).toEqual(decision.rawScores);

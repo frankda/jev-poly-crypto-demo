@@ -12,7 +12,7 @@ if (origin !== api || !origin.startsWith("https://")) fail("JEV_API_URL must be 
 
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist");
-for (const f of ["index.html", "app.js", "decision-view.js", "style.css"]) cpSync(`web/${f}`, `dist/${f}`);
+for (const f of ["index.html", "app.js", "decision-view.js", "state-patch.js", "style.css"]) cpSync(`web/${f}`, `dist/${f}`);
 writeFileSync("dist/config.js", `export const API_BASE = ${JSON.stringify(origin)};\n`);
 const csp = `default-src 'self'; script-src 'self'; style-src 'self'; connect-src ${origin}; img-src 'self' data:; base-uri 'none'; form-action 'none'`;
 const html = readFileSync("dist/index.html", "utf8").replace("<head>", `<head>\n  <meta http-equiv="Content-Security-Policy" content="${csp}">`);
