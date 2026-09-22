@@ -5,6 +5,7 @@ import { DemoData } from "./demo";
 import { Engine } from "./engine";
 import { JevModel, MockModel } from "./model";
 import { PolymarketData } from "./polymarket";
+import { publicView } from "./public-view";
 import { MemoryStore } from "./memory-store";
 import { Store } from "./store";
 import type { Ledger } from "./types";
@@ -47,7 +48,7 @@ let stateCache: { version: number; at: number; body: string } | null = null, sta
 engine.subscribe(() => { stateVersion++; });
 const stateJson = () => {
   const now = Date.now();
-  if (!stateCache || stateCache.version !== stateVersion || now - stateCache.at > 1000) stateCache = { version: stateVersion, at: now, body: JSON.stringify(engine.view()) };
+  if (!stateCache || stateCache.version !== stateVersion || now - stateCache.at > 1000) stateCache = { version: stateVersion, at: now, body: JSON.stringify(publicView(engine.view())) };
   return stateCache.body;
 };
 let sseClients = 0;
@@ -59,6 +60,9 @@ const server = Bun.serve({
   error() { return new Response("Internal error", { status: 500 }); },
   async fetch(request) {
     const url = new URL(request.url);
+    // REQUIRE_ORIGIN=on: serve only the configured dashboard origin (browsers always send Origin on these cross-site
+    // requests). Blocks direct visits, other sites and casual scripts; a forged header is not stopped, so this is not auth.
+    if (config.requireOrigin && request.headers.get("origin") !== config.corsOrigin) return new Response("Forbidden", { status: 403, headers: securityHeaders });
     if (request.method === "POST" && url.pathname === "/api/control") {
       // Hosted demos (CONTROL=off) must not let any visitor pause the shared engine.
       if (!config.control) return new Response("Control disabled", { status: 403 });

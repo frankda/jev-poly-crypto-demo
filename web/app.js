@@ -191,10 +191,23 @@ $('pause').addEventListener('click', async () => {
   } catch (e) { set('notice', e.message); }
   finally { $('pause').disabled = false; }
 });
-const events = new EventSource(`${API_BASE}/events`);
-events.onopen = () => { connected = true; refreshClock(); };
-events.addEventListener('state', e => { try { render(JSON.parse(e.data)); } catch (error) { set('notice', `Dashboard update failed: ${error.message}`); } });
-events.onerror = () => { connected = false; refreshClock(); };
+// EventSource gives up for good on a non-200 reply (e.g. 503 when the server is full), so reconnect ourselves
+// with jittered backoff; the browser's own retry still handles plain network drops.
+let retries = 0;
+function connect() {
+  const events = new EventSource(`${API_BASE}/events`);
+  events.onopen = () => { connected = true; retries = 0; refreshClock(); };
+  events.addEventListener('state', e => { try { render(JSON.parse(e.data)); } catch (error) { set('notice', `Dashboard update failed: ${error.message}`); } });
+  events.onerror = () => {
+    connected = false; refreshClock();
+    if (events.readyState !== EventSource.CLOSED) return;
+    const delay = Math.min(60000, 5000 * 2 ** Math.min(retries++, 4)) * (0.5 + Math.random());
+    $('notice').className = 'notice error';
+    set('notice', `The server is busy or unreachable. Retrying in ${Math.round(delay / 1000)}s…`);
+    setTimeout(connect, delay);
+  };
+}
+connect();
 setInterval(refreshClock, 100);
 import { directionOf, shouldPulse } from './decision-view.js';
 import { API_BASE } from './config.js';
