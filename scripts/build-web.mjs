@@ -2,10 +2,13 @@
 // Plain Node, no dependencies: nothing secret is read or bundled — only the API origin is written into config.js.
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
-const api = (process.env.JEV_API_URL ?? "").trim().replace(/\/+$/, "");
+const raw = process.env.JEV_API_URL;
+const api = (raw ?? "").trim().replace(/^["']|["']$/g, "").replace(/\/+$/, "");
+const fail = (why) => { throw new Error(`${why}. Got JEV_API_URL=${raw === undefined ? "(not set)" : JSON.stringify(raw)}. ` +
+  "Set it in Vercel → Project → Settings → Environment Variables (Production), e.g. https://46-62-215-204.sslip.io, then redeploy."); };
 let origin;
-try { origin = new URL(api).origin; } catch { throw new Error("Set JEV_API_URL to the engine's public URL, e.g. https://jev-poly.up.railway.app"); }
-if (origin !== api || !origin.startsWith("https://")) throw new Error("JEV_API_URL must be a bare https origin without a path");
+try { origin = new URL(api).origin; } catch { fail("JEV_API_URL is missing or not a URL"); }
+if (origin !== api || !origin.startsWith("https://")) fail("JEV_API_URL must be a bare https origin without a path");
 
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist");
