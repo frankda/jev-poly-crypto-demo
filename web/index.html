@@ -5,7 +5,35 @@
   <title>Jev / Poly — BTC 5m Decision Lab</title>
   <link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script>
 </head>
-<body>
+<body class="closed">
+  <!-- The experiment is over: a static, non-dismissable summary. No close control, and the page no longer
+       talks to any server, so nothing here depends on JavaScript or on the engine being reachable. -->
+  <div class="final" role="dialog" aria-modal="true" aria-labelledby="final-title">
+    <article>
+      <p class="eyebrow">JEV / POLY · BTC 5-MINUTE DECISION LAB</p>
+      <h2 id="final-title">The experiment has ended</h2>
+      <section>
+        <h3>1 · Final result <small>PAPER MONEY</small></h3>
+        <dl class="final-figures">
+          <div><dt>Net P&amp;L</dt><dd class="down">−$244.94</dd></div>
+          <div><dt>Return on $1,000</dt><dd class="down">−24.5%</dd></div>
+          <div><dt>Trades settled</dt><dd>1,029</dd></div>
+          <div><dt>Win rate</dt><dd>37.7%</dd></div>
+          <div><dt>Fees paid</dt><dd>$130.81</dd></div>
+          <div><dt>Ran for</dt><dd>23.6 h</dd></div>
+        </dl>
+        <p class="final-note">22 Sep 2026 04:33 UTC → 23 Sep 2026 04:11 UTC. Every entry and exit was simulated against live Polymarket books with fees; the strategy was never validated and this is a single, short sample.</p>
+      </section>
+      <section>
+        <h3>2 · The engine is stopped</h3>
+        <p>The Jev quota is used up. The decision engine has been shut down and this page no longer connects to it — what you see below is a frozen shell. The quota that is left now runs <strong>live</strong> on Polymarket, taking the <strong>opposite</strong> side of Jev's calls. That account is public: <a href="https://polymarket.com/@yamatoshi" rel="noopener noreferrer" target="_blank">polymarket.com/@yamatoshi</a>.</p>
+      </section>
+      <section>
+        <h3>3 · Open source</h3>
+        <p>The engine, the decision rules and this dashboard: <a href="https://github.com/frankda/jev-poly-crypto-demo" rel="noopener noreferrer" target="_blank">github.com/frankda/jev-poly-crypto-demo</a>.</p>
+      </section>
+    </article>
+  </div>
   <div class="shell">
     <header>
       <a class="brand" href="/" aria-label="Jev Poly home"><span class="logo">j.</span><span>jev<span class="slash"> / </span>poly<span class="lab">DECISION LAB</span></span></a>
@@ -13,10 +41,6 @@
     </header>
     <main>
       <div class="intro"><div><p class="eyebrow">POLYMARKET · 5 MINUTE MARKETS</p><h1>Every call, on the record.</h1><p class="muted">BTC up/down decision lab <span class="separator">/</span> Market data → Jev score → Entry rules → Paper settlement</p></div><button id="pause" class="button" disabled>Pause <span>Ⅱ</span></button></div>
-      <section class="announcement" aria-label="Announcement">
-        <p><strong>The Jev quota is used up, and the decision engine has been stopped.</strong> This page keeps the record of every call it made; it is no longer updating.</p>
-        <p>The quota that is left now runs live on Polymarket, taking the <strong>opposite</strong> side of Jev's calls. That account is public: <a href="https://polymarket.com/@yamatoshi" rel="noopener noreferrer" target="_blank">polymarket.com/@yamatoshi</a>.</p>
-      </section>
       <div id="notice" class="notice">Connecting to the decision engine…</div>
       <section class="stats" aria-label="Paper account">
         <article class="stat"><span>Available cash <small>PAPER</small></span><strong id="cash">—</strong><p id="bankroll">Starting bankroll —</p></article>

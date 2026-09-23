@@ -217,8 +217,12 @@ function connect() {
     setTimeout(connect, delay);
   };
 }
-connect();
-setInterval(refreshClock, 100);
+// The experiment is over: the engine is gone and the dashboard no longer connects to anything. The code above is
+// kept as the record of how the page worked; `connect()` and the clock are deliberately not started.
+set('data-mode', 'STOPPED');
+set('connection', 'Engine stopped');
+$('connection-dot').style.background = '#dda671';
+set('notice', 'The decision engine has been stopped and this dashboard no longer connects to it.');
 import { directionOf, shouldPulse } from './decision-view.js';
 import { applyPatch } from './state-patch.js';
 import { API_BASE } from './config.js';
